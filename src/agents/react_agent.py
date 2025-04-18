@@ -1,23 +1,22 @@
 """
-Standalone implementations of the Hugging Face Native Agent Components.
+Standalone ReAct Agent implementation.
 
-These implementations remove the dependency on Langflow, allowing the agents
-to be used in any Python project with the appropriate dependencies.
+This module provides a ReAct (Reasoning and Acting) agent that works with
+any LLM, including open-source models hosted on Hugging Face, without
+requiring the Langflow framework.
 """
 
 from typing import Any, Dict, List, Optional
 
 from langchain.agents import AgentExecutor
 from langchain.agents.react.base import ReActDocstoreAgent
-from langchain.chains import LLMChain
-from langchain.prompts import PromptTemplate
 from langchain.callbacks.base import BaseCallbackHandler
 from langchain.llms.base import BaseLLM as BaseLanguageModel
 from langchain.tools.base import BaseTool
 
 
 class StandaloneReActAgent:
-    """Standalone implementation of the ReAct Agent without Langflow dependency.
+    """Standalone implementation of the ReAct Agent.
     
     This agent uses the ReAct (Reasoning and Acting) approach to solve problems
     with any LLM, including open-source models hosted on Hugging Face.
@@ -98,8 +97,3 @@ class StandaloneReActAgent:
     def __call__(self, input_text: str) -> str:
         """Allow the agent to be called directly."""
         return self.run(input_text)
-
-
-# Note: We're removing the PlanExecuteAgent implementation for now since it requires experimental modules
-# that aren't available in the current version of langchain. We'll keep just the ReActAgent
-# which has simpler dependencies.

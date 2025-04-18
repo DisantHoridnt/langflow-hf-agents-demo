@@ -1,6 +1,91 @@
-# HF-Native Agents for Langflow - Client Demo
+# HF‑Native Agents
 
-This is a demonstration of open-source LLM agents for Langflow that work with Hugging Face models without requiring OpenAI or other proprietary APIs. The agents support both ReAct and Plan-and-Execute patterns for solving complex reasoning tasks.
+A professional implementation of ReAct & Plan‑and‑Execute Agent Components for both Langflow integration and standalone usage with Hugging Face models.
+
+## Overview
+
+This package provides two distinct implementations:
+
+1. **Standalone Agents** - Use with any Python project:
+   - `StandaloneReActAgent` - Implements the ReAct (Reasoning and Acting) pattern
+   - `StandalonePlanExecuteAgent` - Implements the Plan-and-Execute pattern
+
+2. **Langflow Components** - For low-code flow creation in Langflow:
+   - `ReActAgentComponent` - Appears in the Langflow UI as "ReAct Agent"
+   - `PlanExecuteAgentComponent` - Appears in the Langflow UI as "Plan-Execute Agent"
+
+Both implementations work with any LLM, including open-source models hosted on Hugging Face, without requiring proprietary APIs.
+
+## Installation
+
+### Usage
+
+### Standalone Usage
+
+```python
+from dotenv import load_dotenv
+from langchain.llms import HuggingFaceHub
+from langchain.tools import WikipediaQueryRun
+from langchain.utilities import WikipediaAPIWrapper
+from hf_agents.agents import StandaloneReActAgent
+
+# Load environment variables
+load_dotenv()
+
+# Create an LLM
+llm = HuggingFaceHub(
+    repo_id="mistralai/Mistral-7B-Instruct-v0.2",
+    model_kwargs={"temperature": 0.7, "max_length": 512}
+)
+
+# Create some tools
+wikipedia_tool = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+wikipedia_tool.name = "Lookup"  # ReAct agent expects specific tool names
+
+# Create the agent
+agent = StandaloneReActAgent(llm=llm, tools=[wikipedia_tool])
+
+# Run the agent
+result = agent.run("What is the capital of France?")
+print(result)
+```
+
+### Langflow Integration
+
+To use the Langflow components:
+
+1. Install Langflow in a separate environment:
+   ```bash
+   pip install langflow
+   ```
+
+2. Set the component path:
+   ```bash
+   export LANGFLOW_COMPONENT_PATH=/path/to/langflow-hf-agents-demo/src/langflow_components
+   ```
+
+3. Start Langflow:
+   ```bash
+   langflow run
+   ```
+
+4. Import the reference flows from `reference_flows/`
+
+## Project Structure
+
+```
+├── src/                        # Source code
+│   ├── agents/                 # Standalone implementations
+│   │   ├── react_agent.py      # ReAct agent
+│   │   └── plan_execute_agent.py # Plan-Execute agent
+│   └── langflow_components/    # Langflow integration
+│       ├── react_agent.py      # ReAct component for Langflow
+│       └── plan_execute_agent.py # Plan-Execute component for Langflow
+├── reference_flows/            # Reference Langflow configurations
+├── tests/                      # Test suite
+├── docs/                       # Documentation
+└── setup.py                    # Package installation
+```
 
 ## Setup Instructions
 

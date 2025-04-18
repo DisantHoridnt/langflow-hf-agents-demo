@@ -52,7 +52,7 @@ After installation, the components will appear in the Langflow UI under the "Age
 
 ### Sample Flows
 
-Two example flows are provided to help you get started:
+Two implementation flows are provided to help you get started:
 
 1. **React Agent Flow**: `sample_flows/react_agent_flow.json` - Demonstrates the ReAct agent with Calculator and Search tools using Mistral-7B
 2. **Plan-Execute Agent Flow**: `sample_flows/plan_execute_agent_flow.json` - Demonstrates the Plan-Execute agent with SerpAPI and Calculator tools using Phi-3-mini
@@ -90,7 +90,7 @@ These components have been tested with:
 
 - **Icon Customization**: Both components use distinctive emojis (🤔 for ReAct, 🗺️ for Plan-Execute) for easy identification
 - **Memory Support Preparation**: Both components have optional memory inputs ready for v2 implementation
-- **Sample Flows**: Ready-to-use example flows for both agent types with recommended tool configurations
+- **Sample Flows**: Ready-to-use implementation flows for both agent types with recommended tool configurations
 
 ## Limitations
 
