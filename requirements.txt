@@ -1,14 +1,28 @@
-# Core dependencies with compatible versions
-langchain>=0.0.310, <0.1.0
-langchain-core>=0.1.8, <0.2.0
-langchain-community>=0.0.10, <0.1.0
-langchain-experimental>=0.0.32, <0.1.0
-huggingface_hub>=0.19.0, <0.20.0
+# Core LangChain Dependencies
+langchain==0.0.310
+langchain-core==0.1.8
+langchain-community==0.0.10
 
-# Testing
-pytest>=7.0.0, <8.0.0
+# Model Provider
+huggingface_hub==0.19.4
 
-# Common dependencies
-pydantic>=2.0.0, <3.0.0
-tiktoken>=0.5.0, <0.6.0
+# Type Checking and Data Validation
+pydantic==2.5.2
 
+# Tools and Utilities
+wikipedia==1.4.0
+duckduckgo-search==3.9.11
+python-dotenv==1.0.0
+
+# Testing Dependencies
+pytest==7.4.4
+
+# Development Dependencies
+black==23.3.0
+isort==5.12.0
+flake8==6.0.0
+
+# Notes:
+# - Langflow is not included as its dependencies conflict with our current setup
+# - Install with: pip install -e .
+# - For Langflow integration: pip install langflow in a separate environment
