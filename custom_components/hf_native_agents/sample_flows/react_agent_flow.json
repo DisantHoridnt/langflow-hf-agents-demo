@@ -1,0 +1,125 @@
+{
+  "name": "HF ReAct Agent Sample Flow",
+  "description": "Example flow using the ReAct Agent Component with HuggingFace LLM",
+  "data": {
+    "nodes": [
+      {
+        "id": "chat-input-1",
+        "position": {
+          "x": 100,
+          "y": 300
+        },
+        "type": "chatInputNode",
+        "data": {
+          "node_id": "chat-input-1",
+          "name": "Chat Input"
+        }
+      },
+      {
+        "id": "chat-output-1",
+        "position": {
+          "x": 1000,
+          "y": 300
+        },
+        "type": "chatOutputNode",
+        "data": {
+          "node_id": "chat-output-1",
+          "name": "Chat Output"
+        }
+      },
+      {
+        "id": "calculator-tool-1",
+        "position": {
+          "x": 500,
+          "y": 100
+        },
+        "type": "calculatorNode",
+        "data": {
+          "node_id": "calculator-tool-1",
+          "name": "Calculator Tool"
+        }
+      },
+      {
+        "id": "search-tool-1",
+        "position": {
+          "x": 500,
+          "y": 200
+        },
+        "type": "searchToolNode",
+        "data": {
+          "node_id": "search-tool-1",
+          "name": "Search Tool"
+        }
+      },
+      {
+        "id": "huggingface-model-1",
+        "position": {
+          "x": 500,
+          "y": 400
+        },
+        "type": "HuggingFaceModelNode",
+        "data": {
+          "node_id": "huggingface-model-1",
+          "name": "HuggingFace Model",
+          "model_id": "mistralai/Mistral-7B-Instruct-v0.3",
+          "max_new_tokens": 512,
+          "temperature": 0.7,
+          "api_token": "YOUR_HF_API_TOKEN_HERE"
+        }
+      },
+      {
+        "id": "react-agent-1",
+        "position": {
+          "x": 700,
+          "y": 300
+        },
+        "type": "ReActAgentComponentNode",
+        "data": {
+          "node_id": "react-agent-1",
+          "name": "ReAct Agent",
+          "system_prompt": "You are a helpful assistant that has access to tools. Use the tools when needed to solve problems step by step.",
+          "verbose": true,
+          "max_iterations": 10,
+          "handle_parsing_errors": true
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "chat-input-1",
+        "sourceHandle": "ChatInput",
+        "target": "react-agent-1",
+        "targetHandle": "input_value",
+        "id": "edge-input-agent"
+      },
+      {
+        "source": "calculator-tool-1",
+        "sourceHandle": "Calculator",
+        "target": "react-agent-1",
+        "targetHandle": "tools",
+        "id": "edge-calculator-agent"
+      },
+      {
+        "source": "search-tool-1",
+        "sourceHandle": "SearchTool",
+        "target": "react-agent-1",
+        "targetHandle": "tools",
+        "id": "edge-search-agent"
+      },
+      {
+        "source": "huggingface-model-1",
+        "sourceHandle": "HuggingFace",
+        "target": "react-agent-1",
+        "targetHandle": "llm",
+        "id": "edge-model-agent"
+      },
+      {
+        "source": "react-agent-1",
+        "sourceHandle": "response",
+        "target": "chat-output-1",
+        "targetHandle": "ChatOutput",
+        "id": "edge-agent-output"
+      }
+    ]
+  }
+}

@@ -1,0 +1,128 @@
+{
+  "name": "HF Plan-Execute Agent Sample Flow",
+  "description": "Example flow using the Plan-Execute Agent Component with Phi-3 and SerpAPI",
+  "data": {
+    "nodes": [
+      {
+        "id": "chat-input-1",
+        "position": {
+          "x": 100,
+          "y": 300
+        },
+        "type": "chatInputNode",
+        "data": {
+          "node_id": "chat-input-1",
+          "name": "Chat Input"
+        }
+      },
+      {
+        "id": "chat-output-1",
+        "position": {
+          "x": 1000,
+          "y": 300
+        },
+        "type": "chatOutputNode",
+        "data": {
+          "node_id": "chat-output-1",
+          "name": "Chat Output"
+        }
+      },
+      {
+        "id": "serpapi-tool-1",
+        "position": {
+          "x": 500,
+          "y": 100
+        },
+        "type": "serpAPINode",
+        "data": {
+          "node_id": "serpapi-tool-1",
+          "name": "SerpAPI Tool",
+          "serpapi_api_key": "YOUR_SERPAPI_KEY_HERE"
+        }
+      },
+      {
+        "id": "calculator-tool-1",
+        "position": {
+          "x": 500,
+          "y": 200
+        },
+        "type": "calculatorNode",
+        "data": {
+          "node_id": "calculator-tool-1",
+          "name": "Calculator Tool"
+        }
+      },
+      {
+        "id": "huggingface-model-1",
+        "position": {
+          "x": 500,
+          "y": 400
+        },
+        "type": "HuggingFaceModelNode",
+        "data": {
+          "node_id": "huggingface-model-1",
+          "name": "HuggingFace Phi-3 Model",
+          "model_id": "microsoft/phi-3-mini",
+          "max_new_tokens": 1024,
+          "temperature": 0.7,
+          "api_token": "YOUR_HF_API_TOKEN_HERE"
+        }
+      },
+      {
+        "id": "plan-execute-agent-1",
+        "position": {
+          "x": 700,
+          "y": 300
+        },
+        "type": "PlanExecuteAgentComponentNode",
+        "data": {
+          "node_id": "plan-execute-agent-1",
+          "name": "Plan-Execute Agent",
+          "system_prompt": "You are a helpful assistant that first plans what to do, then executes the plan step by step. Break complex tasks into manageable steps and solve them methodically.",
+          "planner_prompt": "Create a clear step-by-step plan to solve this task. Think about what information you need to gather and what calculations might be required.",
+          "verbose": true,
+          "max_iterations": 15,
+          "max_execution_iterations": 6,
+          "handle_parsing_errors": true
+        }
+      }
+    ],
+    "edges": [
+      {
+        "source": "chat-input-1",
+        "sourceHandle": "ChatInput",
+        "target": "plan-execute-agent-1",
+        "targetHandle": "input_value",
+        "id": "edge-input-agent"
+      },
+      {
+        "source": "serpapi-tool-1",
+        "sourceHandle": "SerpAPI",
+        "target": "plan-execute-agent-1",
+        "targetHandle": "tools",
+        "id": "edge-serpapi-agent"
+      },
+      {
+        "source": "calculator-tool-1",
+        "sourceHandle": "Calculator",
+        "target": "plan-execute-agent-1",
+        "targetHandle": "tools",
+        "id": "edge-calculator-agent"
+      },
+      {
+        "source": "huggingface-model-1",
+        "sourceHandle": "HuggingFace",
+        "target": "plan-execute-agent-1",
+        "targetHandle": "llm",
+        "id": "edge-model-agent"
+      },
+      {
+        "source": "plan-execute-agent-1",
+        "sourceHandle": "response",
+        "target": "chat-output-1",
+        "targetHandle": "ChatOutput",
+        "id": "edge-agent-output"
+      }
+    ]
+  }
+}
