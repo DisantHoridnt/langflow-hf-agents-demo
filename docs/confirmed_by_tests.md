@@ -20,8 +20,3 @@
   - `HuggingFaceHub` deprecated → migrate to `langchain_huggingface.InferenceClient`.  
   - `LLMChain` deprecated → migrate to `RunnableSequence` (`prompt | llm`).
 - **Pydantic**: Class‑based `Config` and `json_encoders` deprecated in v2.
-
----
-**Next Steps**  
-- Address these deprecations at your pace.  
-- Add a note in the README/docs about requiring a live Langflow install for true integration tests.  
