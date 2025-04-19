@@ -34,8 +34,8 @@ load_dotenv()
 
 # Create an LLM
 llm = HuggingFaceHub(
-    repo_id="mistralai/Mistral-7B-Instruct-v0.2",
-    model_kwargs={"temperature": 0.7, "max_length": 512}
+    repo_id="microsoft/phi-3-mini-4k-instruct",  # Or any other HF model
+    model_kwargs={"temperature": 0.7, "max_new_tokens": 512}
 )
 
 # Create some tools
@@ -142,7 +142,7 @@ We use a specialized Docker setup to properly install and run Langflow without d
 
 Create a `.env` file with the following variables:
 ```
-HUGGINGFACEHUB_API_TOKEN=your_huggingface_token
+HUGGINGFACEHUB_API_TOKEN="your_huggingface_token"
 ```
 
 ### Option 2: Manual Setup
@@ -205,18 +205,15 @@ HUGGINGFACEHUB_API_TOKEN=your_huggingface_token
 4. **Full tool support**: Uses standard LangChain tools with no code changes
 5. **Flexible architecture**: Supports both ReAct and Plan-and-Execute patterns
 
-## Testing Strategy
+## Testing
 
-The project has a well-organized testing structure:
+The project includes comprehensive tests, which you can run using Docker with the included Makefile commands:
 
-- **Unit Tests**: Located in `tests/unit/` - Test core functionality without Langflow dependencies
-- **Integration Tests**: Located in `tests/integration/` - Test Langflow integration with Docker-managed dependencies
-
-### Running Tests
-
-#### Using Docker (Recommended)
 ```bash
-# All tests
+# Build the Docker images
+make build
+
+# Run all tests
 make all-tests
 
 # Unit tests only
@@ -224,16 +221,24 @@ make unit-tests
 
 # Integration tests only
 make integration-tests
+
+# Run Hugging Face model integration tests specifically
+make hf-model-tests
 ```
 
-#### Manually
+#### Manual Testing (Not Recommended)
+
+While it's recommended to use the Docker-based testing setup to avoid dependency issues, you can run tests manually:
+
 ```bash
 # Unit tests
 python -m pytest tests/unit
 
-# Integration tests (requires Langflow)
+# Integration tests (requires proper environment setup)
 python -m pytest tests/integration
 ```
+
+**Note**: For the integration tests to work, you need to have the `HUGGINGFACEHUB_API_TOKEN` environment variable set.
 
 ## Additional Resources
 

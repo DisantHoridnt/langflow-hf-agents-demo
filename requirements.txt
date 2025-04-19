@@ -1,3 +1,7 @@
+# DEPRECATED: This file is kept only for reference purposes.
+# Please use requirements-core.txt and requirements-dev.txt instead,
+# which are the files used by the Docker setup.
+
 # Core LangChain Dependencies
 langchain==0.0.310
 langchain-core==0.1.8
