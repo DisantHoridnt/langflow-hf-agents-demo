@@ -2,15 +2,6 @@
 
 **Project Name:** *HF‑Native ReAct & Plan‑and‑Execute Agent Components for Langflow*
 
-**Author:** ChatGPT (Product / Tech)
-
-**Last Updated:** 18 Apr 2025
-
-**Stakeholders:**
-- **Daniel Thanos** – Product lead / power user (primary)
-- Langflow OSS contributor community (secondary)
-- Langflow core maintainers (tertiary)
-
 ---
 
 ## 1  Background & Problem Statement
@@ -132,8 +123,3 @@ ChatInput ─▶ Plan&Execute Agent ─▶ ChatOutput
 1. Should we add **memory** input in v1 or defer to v1.1?
 2. Do we need a dedicated **streaming tokens** output port?
 3. Any branding or icon guidelines to align with Langflow’s design system?
-
----
-
-> **Next step:** Await stakeholder sign‑off. Once approved, development kicks off on **T + 0**.
-

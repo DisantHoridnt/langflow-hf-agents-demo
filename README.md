@@ -27,7 +27,7 @@ from dotenv import load_dotenv
 from langchain.llms import HuggingFaceHub
 from langchain.tools import WikipediaQueryRun
 from langchain.utilities import WikipediaAPIWrapper
-from hf_agents.agents import StandaloneReActAgent
+from hf_agents import StandaloneReActAgent
 
 # Load environment variables
 load_dotenv()
@@ -75,12 +75,14 @@ To use the Langflow components:
 
 ```
 ├── src/                        # Source code
-│   ├── agents/                 # Standalone implementations
-│   │   ├── react_agent.py      # ReAct agent
-│   │   └── plan_execute_agent.py # Plan-Execute agent
-│   └── langflow_components/    # Langflow integration
-│       ├── react_agent.py      # ReAct component for Langflow
-│       └── plan_execute_agent.py # Plan-Execute component for Langflow
+│   ├── core/                   # Core implementations
+│   │   └── agents/             # Agent implementations
+│   │       ├── react.py         # ReAct agent
+│   │       └── plan_execute.py  # Plan-Execute agent
+│   └── integrations/           # Framework integrations
+│       └── langflow/           # Langflow components
+│           ├── react_component.py    # ReAct component for Langflow
+│           └── plan_execute_component.py # Plan-Execute component
 ├── reference_flows/            # Reference Langflow configurations
 ├── tests/                      # Test suite
 ├── docs/                       # Documentation

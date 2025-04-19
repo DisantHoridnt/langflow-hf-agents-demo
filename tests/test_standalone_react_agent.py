@@ -47,14 +47,13 @@ def test_tool_name_validation():
     assert len(tool_names) != len(set(tool_names))
 
 
-# Simple test to verify our module structure without creating instances
+# Test to verify our module structure without creating instances
 def test_standalone_agent_imports():
-    """Test that we can import the standalone agent module."""
-    import standalone_agents
-    assert hasattr(standalone_agents, "StandaloneReActAgent")
+    """Test that we can import the standalone agent from the new structure."""
+    from src.core.agents import StandaloneReActAgent
     
     # Verify the class has the expected methods
-    assert hasattr(standalone_agents.StandaloneReActAgent, "__init__")
-    assert hasattr(standalone_agents.StandaloneReActAgent, "_build_agent_executor")
-    assert hasattr(standalone_agents.StandaloneReActAgent, "run")
-    assert hasattr(standalone_agents.StandaloneReActAgent, "__call__")
+    assert hasattr(StandaloneReActAgent, "__init__")
+    assert hasattr(StandaloneReActAgent, "_build_agent_executor")
+    assert hasattr(StandaloneReActAgent, "run")
+    assert hasattr(StandaloneReActAgent, "__call__")
