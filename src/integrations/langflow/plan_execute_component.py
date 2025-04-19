@@ -4,29 +4,77 @@ Plan-and-Execute Agent Component for Langflow.
 This component implements a Plan-and-Execute agent that works with
 any LLM, including open-source models hosted on Hugging Face.
 """
+import os
+import logging
+from typing import Dict, List, Optional, Union, Any
 
-from typing import Any, Dict, List, Optional
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-from langchain.agents import AgentExecutor
-from langchain.agents.format_scratchpad.openai_tools import (
-    format_to_openai_tool_messages,
-)
-from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
-from langchain.callbacks.base import BaseCallbackHandler
-from langchain.chains import LLMChain
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
-from langchain_core.language_models.base import BaseLanguageModel
+# Import from LangChain with fallbacks for different versions
+try:
+    from langchain.agents import AgentExecutor
+    from langchain.agents.react.agent import create_react_agent
+    from langchain.agents.plan_and_execute.agent import PlanAndExecute
+    from langchain.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser
+    from langchain.chains.llm_chain import LLMChain
+    from langchain.memory.chat_memory import BaseChatMemory
+    from langchain.schema.language_model import BaseLanguageModel
+    from langchain.tools.base import BaseTool
+except ImportError:
+    try:
+        # Try with newer imports from langchain_* namespace
+        from langchain_core.agents import AgentExecutor
+        from langchain_community.agents.react.agent import create_react_agent
+        from langchain_community.agents.plan_and_execute.agent import PlanAndExecute
+        from langchain_community.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser
+        from langchain_core.chains import LLMChain
+        from langchain_core.memory import BaseChatMemory
+        from langchain_core.language_models import BaseLanguageModel
+        from langchain_core.tools import BaseTool
+    except ImportError:
+        logger.warning("Could not import LangChain components")
+
+# Import from our adapter layer instead of directly from Langflow
+from .adapters import LCToolsAgentComponent, LanguageModel, Tool, BaseMemory
 from langchain_core.runnables import Runnable
 from langchain_experimental.plan_and_execute import (
     PlanAndExecute,
     load_agent_executor,
     load_chat_planner,
 )
-from langchain.agents import create_react_agent
 
-from langflow.base.agents.agent import LCToolsAgentComponent
-from langflow.field_typing import LanguageModel, Tool, BaseMemory
-from langflow.io import BoolInput, IntInput, MultilineInput
+# Import Langflow input types or use our own if not available
+try:
+    from langflow.io import BoolInput, IntInput, MultilineInput
+except ImportError:
+    logger.warning("Could not import Langflow input types - using fallbacks")
+    
+    # Define basic input types if imports fail
+    class MultilineInput:
+        def __init__(self, *, name, display_name, info, value, advanced=False):
+            self.name = name
+            self.display_name = display_name
+            self.info = info
+            self.value = value
+            self.advanced = advanced
+
+    class IntInput:
+        def __init__(self, *, name, display_name, info, value, advanced=False):
+            self.name = name
+            self.display_name = display_name
+            self.info = info
+            self.value = value
+            self.advanced = advanced
+
+    class BoolInput:
+        def __init__(self, *, name, display_name, info, value, advanced=False):
+            self.name = name
+            self.display_name = display_name
+            self.info = info
+            self.value = value
+            self.advanced = advanced
 
 
 class PlanExecuteAgentComponent(LCToolsAgentComponent):

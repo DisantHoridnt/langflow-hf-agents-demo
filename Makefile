@@ -1,4 +1,4 @@
-.PHONY: unit-tests integration-tests all-tests build dev clean
+.PHONY: unit-tests integration-tests all-tests build dev clean gemma-tests run-all-integration
 
 # Run unit tests only
 unit-tests:
@@ -6,11 +6,11 @@ unit-tests:
 
 # Run integration tests only (requires Langflow)
 integration-tests:
-	docker-compose run --rm integration-tests
+	docker-compose --env-file .env run --rm integration-tests
 
 # Run all tests (both unit and integration)
 all-tests:
-	docker-compose run --rm unit-tests && docker-compose run --rm integration-tests
+	docker-compose run --rm unit-tests && docker-compose --env-file .env run --rm integration-tests
 
 # Build all Docker images
 build:
@@ -18,12 +18,20 @@ build:
 
 # Start development environment with Langflow
 dev:
-	docker-compose up dev
+	docker-compose --env-file .env up dev
 
 # Clean up Docker resources
 clean:
 	docker-compose down
 	docker system prune -f
+
+# Run the Gemma integration test file (with logs)
+gemma-tests:
+	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-langflow.sh && python -m pytest tests/integration/test_real_langflow_components.py -v -s"
+
+# Run all integration tests
+run-all-integration:
+	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-langflow.sh && python -m pytest tests/integration -v"
 
 # Help
 help:
@@ -31,6 +39,8 @@ help:
 	@echo "  make unit-tests         - Run unit tests only"
 	@echo "  make integration-tests  - Run integration tests (requires Langflow)"
 	@echo "  make all-tests          - Run all tests"
+	@echo "  make gemma-tests        - Run Gemma integration tests (uses real HF API)"
+	@echo "  make run-all-integration - Run all integration tests"
 	@echo "  make build              - Build Docker images"
 	@echo "  make dev                - Start development environment with Langflow"
 	@echo "  make clean              - Clean up Docker resources"

@@ -25,29 +25,84 @@ def pytest_runtest_setup(item):
     if "HUGGINGFACEHUB_API_TOKEN" not in os.environ:
         pytest.skip("HUGGINGFACEHUB_API_TOKEN not found in environment")
 
+import os
+import logging
+import sys
+import traceback
+
+# Configure logging for debugging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 # Import the required LangChain and Langflow components
 try:
+    logger.info("Trying to import LangChain components...")
     # LangChain community components
     from langchain_community.llms import HuggingFaceHub  
     from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
     from langchain_community.utilities import WikipediaAPIWrapper, DuckDuckGoSearchAPIWrapper
     from langchain_core.tools import BaseTool, Tool, StructuredTool
+    import math
+    import re
     
-    # Calculator tool - imported differently depending on langchain version
-    try:
-        from langchain_community.tools.calculator import CalculatorTool
-    except ImportError:
-        try:
-            from langchain_core.tools.calculator.base import CalculatorTool
-        except ImportError:
-            from langchain.tools import CalculatorTool
+    logger.info("Successfully imported LangChain components")
+    
+    # Create our own simple calculator tool implementation
+    class SimpleCalculatorTool(BaseTool):
+        """Tool for performing basic mathematical calculations."""
+        name: str = "calculator"
+        description: str = "Useful for performing mathematical calculations."
 
-    # Langflow-specific imports
-    from src.integrations.langflow.react_component import ReActAgentComponent
-    from src.integrations.langflow.plan_execute_component import PlanExecuteAgentComponent
+        def _run(self, query: str) -> str:
+            """Evaluate a mathematical expression safely."""
+            try:
+                # Clean the input - only allow numbers, basic operators, and some math functions
+                cleaned_query = query.strip()
+                
+                # Replace common math operations with their Python equivalents
+                cleaned_query = cleaned_query.replace('^', '**')
+                
+                # Check if expression contains only safe characters
+                if not re.match(r'^[0-9+\-*/()\s.,\^]+$', cleaned_query):
+                    return "Error: Expression contains invalid characters. Only basic math operations are supported."
+                
+                # Evaluate the expression
+                result = eval(cleaned_query, {"__builtins__": {}}, {"math": math})
+                return str(result)
+            except Exception as e:
+                return f"Error calculating {query}: {str(e)}"
+
+        async def _arun(self, query: str) -> str:
+            """Async version of calculator."""
+            return self._run(query)
+
+    # Print Python path for debugging
+    logger.info(f"Python path: {sys.path}")
     
-    langflow_imports_available = True
+    # Detailed logging for Langflow imports
+    logger.info("Trying to import Langflow components...")
+    try:
+        # Try importing our adapter first
+        from src.integrations.langflow.adapters import LCToolsAgentComponent
+        logger.info("Successfully imported LCToolsAgentComponent from adapters")
+        
+        # Now try importing the actual components
+        from src.integrations.langflow.react_component import ReActAgentComponent
+        logger.info("Successfully imported ReActAgentComponent")
+        
+        from src.integrations.langflow.plan_execute_component import PlanExecuteAgentComponent
+        logger.info("Successfully imported PlanExecuteAgentComponent")
+        
+        # If we get here, all imports succeeded
+        langflow_imports_available = True
+        logger.info("All Langflow component imports successful!")
+    except ImportError as e:
+        logger.error(f"Error importing Langflow components: {str(e)}")
+        traceback.print_exc()
+        langflow_imports_available = False
 except ImportError as e:
+    logger.error(f"Error importing LangChain components: {str(e)}")
+    traceback.print_exc()
     langflow_imports_available = False
 
 
@@ -83,8 +138,8 @@ def tools() -> List[BaseTool]:
         func=wiki._run
     )
     
-    # Create a calculator tool
-    calculator = CalculatorTool()
+    # Create our simple calculator tool
+    calculator = SimpleCalculatorTool()
     calc_tool = Tool(
         name="Calculator",
         description="Useful for performing mathematical calculations",
@@ -102,9 +157,11 @@ def tools() -> List[BaseTool]:
     return [wiki_tool, calc_tool, search_tool]
 
 
-@pytest.mark.skipif(not langflow_imports_available, reason="Langflow components not available")
-@pytest.mark.skip(reason="API calls - run manually")
 def test_react_agent_with_gemma(gemma_llm, tools):
+    """Test the ReAct agent with real Gemma model."""
+    # Skip if Langflow components aren't available
+    if not langflow_imports_available:
+        pytest.skip("Langflow components not available")
     """
     Test PRD requirements F-1 through F-4 for the ReAct Agent component.
     
@@ -140,9 +197,11 @@ def test_react_agent_with_gemma(gemma_llm, tools):
     print(f"ReAct Agent Result: {result}")
 
 
-@pytest.mark.skipif(not langflow_imports_available, reason="Langflow components not available")
-@pytest.mark.skip(reason="API calls - run manually")
 def test_plan_execute_agent_with_gemma(gemma_llm, tools):
+    """Test the Plan-Execute agent with real Gemma model."""
+    # Skip if Langflow components aren't available
+    if not langflow_imports_available:
+        pytest.skip("Langflow components not available")
     """
     Test PRD requirements F-1 through F-4 for the Plan-Execute Agent component.
     

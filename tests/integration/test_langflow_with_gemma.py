@@ -15,8 +15,40 @@ pytestmark = [pytest.mark.langflow, pytest.mark.slow]
 # Import from langchain_community instead of langchain per deprecation warnings
 from langchain_community.llms import HuggingFaceHub
 from langchain_community.tools import WikipediaQueryRun
-from langchain_community.tools.calculator import CalculatorTool
 from langchain_community.utilities import WikipediaAPIWrapper
+from langchain_core.tools import BaseTool, Tool
+import math
+import re
+
+# Create our own calculator tool implementation using only built-in Python functions
+class SimpleCalculatorTool(BaseTool):
+    """Tool for performing basic mathematical calculations."""
+    name: str = "calculator"
+    description: str = "Useful for performing mathematical calculations."
+
+    def _run(self, query: str) -> str:
+        """Evaluate a mathematical expression safely."""
+        try:
+            # Clean the input - only allow numbers, basic operators, and some math functions
+            # This adds safety compared to raw eval()
+            cleaned_query = query.strip()
+            
+            # Replace common math operations with their Python equivalents
+            cleaned_query = cleaned_query.replace('^', '**')
+            
+            # Check if expression contains only safe characters
+            if not re.match(r'^[0-9+\-*/()\s.,\^]+$', cleaned_query):
+                return "Error: Expression contains invalid characters. Only basic math operations are supported."
+            
+            # Evaluate the expression
+            result = eval(cleaned_query, {"__builtins__": {}}, {"math": math})
+            return str(result)
+        except Exception as e:
+            return f"Error calculating {query}: {str(e)}"
+
+    async def _arun(self, query: str) -> str:
+        """Async version of calculator."""
+        return self._run(query)
 
 # Import our custom components with try/except to handle potential import errors
 try:
@@ -60,12 +92,23 @@ def gemma_llm():
 def tools():
     """Create a set of tools for testing agents."""
     # Create Wikipedia tool
-    wiki_tool = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
-    wiki_tool.name = "Wikipedia"
-    wiki_tool.description = "Useful for looking up information on Wikipedia."
+    wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+    # Use Tool wrapper to avoid Pydantic errors
+    from langchain_core.tools import Tool
     
-    # Create Calculator tool
-    calc_tool = CalculatorTool()
+    wiki_tool = Tool(
+        name="Wikipedia",
+        description="Useful for looking up information on Wikipedia.",
+        func=wiki._run
+    )
+    
+    # Create our simple Calculator tool
+    calculator = SimpleCalculatorTool()
+    calc_tool = Tool(
+        name="Calculator",
+        description="Useful for performing mathematical calculations",
+        func=calculator._run
+    )
     
     return [wiki_tool, calc_tool]
 

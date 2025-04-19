@@ -5,22 +5,81 @@ This component implements a ReAct (Reasoning and Acting) agent that works with
 any LLM, including open-source models hosted on Hugging Face.
 """
 
+import os
+import logging
 from typing import Any, List, Optional
 
-from langchain.agents import AgentExecutor, create_react_agent
-from langchain.agents.format_scratchpad.openai_tools import (
-    format_to_openai_tool_messages,
-)
-from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
-from langchain_core.callbacks import BaseCallbackHandler
-from langchain_core.language_models.base import BaseLanguageModel
-from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
-from langchain_core.runnables import Runnable
-from langchain_core.tools import BaseTool
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-from langflow.base.agents.agent import LCToolsAgentComponent
-from langflow.field_typing import LanguageModel, Tool, BaseMemory
-from langflow.io import BoolInput, IntInput, MultilineInput
+# Import from LangChain - using try/except for flexibility
+try:
+    from langchain.agents import AgentExecutor, create_react_agent
+    from langchain.agents.format_scratchpad.openai_tools import (
+        format_to_openai_tool_messages,
+    )
+    from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
+except ImportError:
+    try:
+        # Try with newer imports
+        from langchain_core.agents import AgentExecutor
+        from langchain_community.agents.react.agent import create_react_agent
+        from langchain_core.agents.format_scratchpad.openai_tools import (
+            format_to_openai_tool_messages,
+        )
+        from langchain_core.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
+    except ImportError:
+        logger.warning("Could not import LangChain agent components")
+
+try:
+    from langchain.memory.chat_memory import BaseChatMemory
+    from langchain.schema.language_model import BaseLanguageModel
+    from langchain.schema.runnable import Runnable
+    from langchain.tools.base import BaseTool
+except ImportError:
+    try:
+        # Try with newer imports
+        from langchain_core.memory import BaseChatMemory
+        from langchain_core.language_models import BaseLanguageModel
+        from langchain_core.runnables import Runnable
+        from langchain_core.tools import BaseTool
+    except ImportError:
+        logger.warning("Could not import LangChain base components")
+
+# Import our custom adapter instead of directly from Langflow
+from .adapters import LCToolsAgentComponent, LanguageModel, Tool, BaseMemory
+
+# Import Langflow input types or use our own if not available
+try:
+    from langflow.io import BoolInput, IntInput, MultilineInput
+except ImportError:
+    logger.warning("Could not import Langflow input types - using fallbacks")
+    
+    # Define basic input types if imports fail
+    class MultilineInput:
+        def __init__(self, *, name, display_name, info, value, advanced=False):
+            self.name = name
+            self.display_name = display_name
+            self.info = info
+            self.value = value
+            self.advanced = advanced
+
+    class IntInput:
+        def __init__(self, *, name, display_name, info, value, advanced=False):
+            self.name = name
+            self.display_name = display_name
+            self.info = info
+            self.value = value
+            self.advanced = advanced
+
+    class BoolInput:
+        def __init__(self, *, name, display_name, info, value, advanced=False):
+            self.name = name
+            self.display_name = display_name
+            self.info = info
+            self.value = value
+            self.advanced = advanced
 
 
 class ReActAgentComponent(LCToolsAgentComponent):
