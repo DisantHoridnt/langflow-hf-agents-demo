@@ -6,11 +6,11 @@ unit-tests:
 
 # Run integration tests only (requires Langflow)
 integration-tests:
-	docker-compose --env-file .env run --rm integration-tests
+	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-environment.sh && python -m pytest tests/integration -v -s"
 
 # Run all tests (both unit and integration)
 all-tests:
-	docker-compose run --rm unit-tests && docker-compose --env-file .env run --rm integration-tests
+	docker-compose run --rm unit-tests && docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-environment.sh && python -m pytest tests/integration -v -s"
 
 # Build all Docker images
 build:
@@ -25,13 +25,13 @@ clean:
 	docker-compose down
 	docker system prune -f
 
-# Run the Gemma integration test file (with logs)
-gemma-tests:
-	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-langflow.sh && python -m pytest tests/integration/test_real_langflow_components.py -v -s"
+# Run the HuggingFace model integration test file (with logs)
+hf-model-tests:
+	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-environment.sh && python -m pytest tests/integration/test_real_langflow_components.py -v -s"
 
 # Run all integration tests
 run-all-integration:
-	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-langflow.sh && python -m pytest tests/integration -v"
+	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-environment.sh && python -m pytest tests/integration -v"
 
 # Help
 help:

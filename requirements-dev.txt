@@ -2,8 +2,17 @@
 
 # Testing Dependencies
 pytest==7.4.4
+pytest-mock
+pytest-asyncio
+pytest-cov
+ruff
+mypy
 
 # Development Dependencies
 black==23.3.0
 isort==5.12.0
 flake8==6.0.0
+langflow[local]>=1.0.0a23 # Installs langflow with all core dependencies and extras for local dev
+duckduckgo-search
+wikipedia
+langchainhub # Added for hub.pull functionality

@@ -5,6 +5,7 @@ langchain>=0.1.0          # Modern namespace-based LangChain
 langchain-core>=0.1.28     # Core abstractions needed across libs
 langchain-text-splitters>=0.0.1  # Text splitting functionality
 langchain-community>=0.0.16  # Community integrations
+langchain-experimental>=0.0.59 # Experimental features like PlanAndExecute
 
 # Type Checking and Data Validation - using Pydantic V2 which works with new LangChain
 pydantic>=2.5.2,<3.0.0

@@ -10,7 +10,7 @@ services:
         INSTALL_LANGFLOW: "false"
     volumes:
       - .:/app
-    command: bash -c "source /activate-core.sh && python -m pytest tests/unit -v"
+    command: bash -c "source /activate-environment.sh && python -m pytest tests/unit -v"
     environment:
       - PYTHONPATH=/app
   
@@ -23,7 +23,7 @@ services:
         INSTALL_LANGFLOW: "true"
     volumes:
       - .:/app
-    command: bash -c "source /activate-langflow.sh && python -m pytest tests/integration -v"
+    command: bash -c "source /activate-environment.sh && python -m pytest tests/integration -v"
     environment:
       - PYTHONPATH=/app
       - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
@@ -40,7 +40,7 @@ services:
       - langflow_cache:/root/.cache/langflow  # Persist Langflow cache
     ports:
       - "7860:7860"  # Langflow UI port
-    command: bash -c "source /activate-langflow.sh && python -m langflow run --host 0.0.0.0 --port 7860"
+    command: bash -c "source /activate-environment.sh && python -m langflow run --host 0.0.0.0 --port 7860"
     environment:
       - PYTHONPATH=/app
       - LANGFLOW_COMPONENT_PATH=/app/src/integrations/langflow

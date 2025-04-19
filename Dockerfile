@@ -33,31 +33,23 @@ COPY pytest.ini .
 RUN . ~/.bashrc && python -m venv /opt/venv-core
 RUN . ~/.bashrc && . /opt/venv-core/bin/activate && \
     uv pip install -r requirements-core.txt && \
-    uv pip install -e . && \
-    uv pip install -r requirements-dev.txt
+    uv pip install -e .
 
-# 2. Langflow environment (only if needed) - with carefully controlled dependencies
-ARG INSTALL_LANGFLOW=false
+# --- Langflow Dependencies Stage (optional) ---
+ARG INSTALL_LANGFLOW
+# Install Langflow dependencies INTO the core venv if requested
 RUN if [ "$INSTALL_LANGFLOW" = "true" ] ; then \
-        . ~/.bashrc && python -m venv /opt/venv-langflow && \
-        . /opt/venv-langflow/bin/activate && \
-        uv pip install pydantic==2.5.2 && \
-        uv pip install typing-extensions>=4.8.0 && \
-        uv pip install langchain>=0.1.0 langchain-core>=0.1.28 && \
-        uv pip install langchain-community>=0.0.16 && \
-        uv pip install wikipedia==1.4.0 duckduckgo-search==3.9.11 && \
-        uv pip install huggingface_hub==0.19.4 && \
-        uv pip install python-dotenv==1.0.0 && \
-        uv pip install -e . && \
-        uv pip install 'langflow>=0.6.3,<0.7.0' numexpr && \
-        python -c "from langchain_community.tools.calculator import CalculatorTool; print('Calculator tool available')" || echo "Calculator tool not found, using custom implementation" ; \
+        . ~/.bashrc && \
+        . /opt/venv-core/bin/activate && \
+        echo "Installing Langflow/Dev dependencies into venv-core..." && \
+        uv pip install -r requirements-dev.txt && \
+        echo "Langflow/Dev dependencies installed into venv-core." ; \
     fi
 
-# Create activation scripts for each environment
-RUN echo '#!/bin/bash\n. /opt/venv-core/bin/activate' > /activate-core.sh && chmod +x /activate-core.sh
-RUN if [ "$INSTALL_LANGFLOW" = "true" ] ; then \
-        echo '#!/bin/bash\n. /opt/venv-langflow/bin/activate' > /activate-langflow.sh && chmod +x /activate-langflow.sh ; \
-    fi
+# Activation script for the single environment
+RUN echo '#!/bin/bash\n. /opt/venv-core/bin/activate' > /activate-environment.sh && chmod +x /activate-environment.sh
+# Remove old activation scripts if they exist (cleanup)
+RUN rm -f /activate-core.sh /activate-langflow.sh
 
 # Default command runs pytest
-CMD ["python", "-m", "pytest"]
+CMD /activate-environment.sh && pytest tests/unit

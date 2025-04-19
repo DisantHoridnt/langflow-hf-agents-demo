@@ -132,7 +132,7 @@ class ReActAgentComponent(LCToolsAgentComponent):
             
         agent_runnable = self.create_agent_runnable()
 
-        # Create the AgentExecutor
+        # Create the AgentExecutor with explicit input_key
         agent_executor = AgentExecutor(
             agent=agent_runnable,
             tools=self.tools or [],
@@ -140,5 +140,6 @@ class ReActAgentComponent(LCToolsAgentComponent):
             max_iterations=self.max_iterations,
             handle_parsing_errors=self.handle_parsing_errors,
             # memory=self.memory, # TODO: Integrate memory if provided
+            input_key="input"  # Specify the input key to handle string inputs properly
         )
         return agent_executor

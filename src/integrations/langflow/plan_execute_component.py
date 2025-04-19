@@ -207,29 +207,53 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         
         This creates a planner that outlines the steps needed to achieve the goal.
         """
-        if not isinstance(self.llm, LanguageModel):
-            raise ValueError(f"Expected llm to be a LanguageModel, got {type(self.llm)}")
+        if self.llm is None:
+            raise ValueError("LLM is required for the planner")
+        
+        # Check for necessary attributes instead of using isinstance check
+        if not (hasattr(self.llm, "invoke") or hasattr(self.llm, "generate") or hasattr(self.llm, "__call__")):
+            raise ValueError(f"LLM needs to have invoke, generate, or be callable. Got {type(self.llm)}")
         
         # Check if system prompt is provided
         if not self.system_prompt:
             raise ValueError("System Prompt is required for the planner.")
 
-        # --- Add explicit check for PromptTemplate --- 
-        if PromptTemplate is None:
-            logger.error("CRITICAL: PromptTemplate is None right before usage in create_planner.")
-            # Re-log the state for debugging, maybe it changed?
-            logger.error(f"Re-Checking essential components: PromptTemplate={PromptTemplate is not None}, LLMChain={LLMChain is not None}, BaseLanguageModel={BaseLanguageModel is not None}")
-            raise ImportError("PromptTemplate was not imported correctly or became None before create_planner execution.")
-        # --- End check ---
+        # Local import of necessary components to avoid depending on global imports
+        try:
+            # First try langchain_core (newer versions)
+            logger.info("Attempting to import PromptTemplate from langchain_core.prompts")
+            from langchain_core.prompts import PromptTemplate as LocalPromptTemplate
+            logger.info("Successfully imported PromptTemplate from langchain_core.prompts")
+        except ImportError:
+            try:
+                # Then try langchain (older versions)
+                logger.info("Attempting to import PromptTemplate from langchain.prompts")
+                from langchain.prompts import PromptTemplate as LocalPromptTemplate
+                logger.info("Successfully imported PromptTemplate from langchain.prompts")
+            except ImportError:
+                raise ImportError("Could not import PromptTemplate from either langchain_core.prompts or langchain.prompts")
 
-        # Construct the planner prompt template using the class-level attribute
-        logger.info(f"Using PromptTemplate type: {type(PromptTemplate)}")
-        planner_prompt = PromptTemplate.from_template(
+        # Construct the planner prompt template using local import
+        logger.info(f"Using locally imported PromptTemplate")
+        planner_prompt = LocalPromptTemplate.from_template(
             template=self.planner_prompt, # Use the input field value
         )
         
-        # Create the planner chain
-        return LLMChain(
+        # Local import for LLMChain too
+        try:
+            # First try newer imports
+            from langchain.chains import LLMChain as LocalLLMChain
+            logger.info("Successfully imported LLMChain from langchain.chains")
+        except ImportError:
+            try:
+                # Then try older imports
+                from langchain.chains.llm_chain import LLMChain as LocalLLMChain
+                logger.info("Successfully imported LLMChain from langchain.chains.llm_chain")
+            except ImportError:
+                raise ImportError("Could not import LLMChain from either langchain.chains or langchain.chains.llm_chain")
+
+        # Create the planner chain with locally imported class
+        return LocalLLMChain(
             llm=self.llm,
             prompt=planner_prompt,
         )
@@ -239,8 +263,12 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         
         This creates an executor that carries out each step of the plan using available tools.
         """
-        if not isinstance(self.llm, LanguageModel):
-            raise ValueError(f"Expected llm to be a LanguageModel, got {type(self.llm)}")
+        if self.llm is None:
+            raise ValueError("LLM is required for the planner")
+        
+        # Check for necessary attributes instead of using isinstance check
+        if not (hasattr(self.llm, "invoke") or hasattr(self.llm, "generate") or hasattr(self.llm, "__call__")):
+            raise ValueError(f"LLM needs to have invoke, generate, or be callable. Got {type(self.llm)}")
         
         if not self.tools:
             raise ValueError("Tools are required for the executor")
@@ -253,19 +281,38 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         except ImportError:
             from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
             
+        # Create a formatted string with tool descriptions for the prompt
+        tool_strings = "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools])
+        
+        # Create a dictionary that we can use to format the message template
+        tool_names = [tool.name for tool in self.tools]
+        
+        # Create the executor prompt including all required tool information
         executor_prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt),
+            ("system", self.system_prompt + "\n\nYou have access to the following tools:\n" + tool_strings),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "I need to execute this step of the plan: {input}"),
+            ("human", "I need to execute this step of the plan: {input}\n\nThe available tools are: {tool_names}\n\nTools: {tools}"),
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ])
         
-        # Create the executor agent
-        # Ensure create_react_agent was imported
-        if create_react_agent is None:
-             raise ImportError("Could not import create_react_agent. Check LangChain installation.")
-             
-        agent = create_react_agent(
+        # Partial format the template to supply tools and tool_names which are fixed for this agent
+        executor_prompt = executor_prompt.partial(tools=str(self.tools), tool_names=", ".join(tool_names))
+        
+        # Local import for create_react_agent
+        try:
+            # Try newer imports first
+            from langchain_community.agents.react.agent import create_react_agent as local_create_react_agent
+            logger.info("Successfully imported create_react_agent from langchain_community")
+        except ImportError:
+            try:
+                # Try older imports
+                from langchain.agents.react.agent import create_react_agent as local_create_react_agent
+                logger.info("Successfully imported create_react_agent from langchain")
+            except ImportError:
+                raise ImportError("Could not import create_react_agent from either langchain_community or langchain")
+        
+        # Create the executor agent with locally imported function
+        agent = local_create_react_agent(
             llm=self.llm,
             tools=self.tools,
             prompt=executor_prompt,
@@ -276,12 +323,21 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         if hasattr(self, "get_langchain_callbacks"):
             callbacks = self.get_langchain_callbacks()
         
-        # Create the executor
-        # Ensure AgentExecutor was imported
-        if AgentExecutor is None:
-            raise ImportError("Could not import AgentExecutor. Check LangChain installation.")
-            
-        return AgentExecutor.from_agent_and_tools(
+        # Local import for AgentExecutor
+        try:
+            # Try newer imports first
+            from langchain_core.agents import AgentExecutor as LocalAgentExecutor
+            logger.info("Successfully imported AgentExecutor from langchain_core")
+        except ImportError:
+            try:
+                # Try older imports
+                from langchain.agents import AgentExecutor as LocalAgentExecutor
+                logger.info("Successfully imported AgentExecutor from langchain")
+            except ImportError:
+                raise ImportError("Could not import AgentExecutor from either langchain_core or langchain")
+        
+        # Create the executor with locally imported class
+        return LocalAgentExecutor.from_agent_and_tools(
             agent=agent,
             tools=self.tools,
             verbose=self.verbose,
@@ -305,15 +361,25 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         if hasattr(self, "get_langchain_callbacks"):
             callbacks = self.get_langchain_callbacks()
         
-        # Ensure planner and executor creation methods exist and imported components are available
-        if load_chat_planner is None or load_agent_executor is None or PlanAndExecute is None:
-            raise ImportError("Could not import necessary components from langchain_experimental. Check installation.")
-            
+        # Local import for PlanAndExecute and related components
+        try:
+            # Try importing directly from langchain_experimental
+            from langchain_experimental.plan_and_execute import PlanAndExecute as LocalPlanAndExecute
+            logger.info("Successfully imported PlanAndExecute from langchain_experimental")
+        except ImportError:
+            try:
+                # Try older import path
+                from langchain.agents.plan_and_execute.agent import PlanAndExecute as LocalPlanAndExecute
+                logger.info("Successfully imported PlanAndExecute from langchain")
+            except ImportError:
+                raise ImportError("Could not import PlanAndExecute from either langchain_experimental or langchain")
+        
+        # Create planner and executor with the methods we've fixed
         planner = self.create_planner()
         executor = self.create_executor()
         
-        # Create the Plan-and-Execute agent
-        return PlanAndExecute(
+        # Create the Plan-and-Execute agent with locally imported class
+        return LocalPlanAndExecute(
             planner=planner,
             executor=executor,
             verbose=self.verbose,
@@ -329,6 +395,19 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         """
         self.validate_tool_names()
         
+        # Local import for PlanAndExecute class to avoid global import issues
+        try:
+            # Try importing directly from langchain_experimental
+            from langchain_experimental.plan_and_execute import PlanAndExecute as LocalPlanAndExecute
+            logger.info("Successfully imported PlanAndExecute from langchain_experimental")
+        except ImportError:
+            try:
+                # Try older import path
+                from langchain.agents.plan_and_execute.agent import PlanAndExecute as LocalPlanAndExecute
+                logger.info("Successfully imported PlanAndExecute from langchain")
+            except ImportError:
+                raise ImportError("Could not import PlanAndExecute from either langchain_experimental or langchain")
+        
         # Create the planner and executor
         planner = self.create_planner()
         executor = self.create_executor()
@@ -338,8 +417,8 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         if hasattr(self, "get_langchain_callbacks"):
             callbacks = self.get_langchain_callbacks()
         
-        # Create the Plan-and-Execute agent
-        agent = PlanAndExecute(
+        # Create the Plan-and-Execute agent using the locally imported class
+        agent = LocalPlanAndExecute(
             planner=planner,
             executor=executor,
             verbose=self.verbose,
