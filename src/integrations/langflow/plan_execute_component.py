@@ -162,10 +162,10 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
     def create_planner(self):
         """Create the planner component for the Plan-and-Execute agent.
         
-        This creates a planner that breaks down the task into steps.
+        This creates a planner that outlines the steps needed to achieve the goal.
         """
-        if not isinstance(self.llm, BaseLanguageModel):
-            raise ValueError(f"Expected llm to be a BaseLanguageModel, got {type(self.llm)}")
+        if not isinstance(self.llm, LanguageModel):
+            raise ValueError(f"Expected llm to be a LanguageModel, got {type(self.llm)}")
         
         # Create the planner prompt template
         planner_prompt = PromptTemplate.from_template(
@@ -186,8 +186,8 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         
         This creates an executor that carries out each step of the plan using available tools.
         """
-        if not isinstance(self.llm, BaseLanguageModel):
-            raise ValueError(f"Expected llm to be a BaseLanguageModel, got {type(self.llm)}")
+        if not isinstance(self.llm, LanguageModel):
+            raise ValueError(f"Expected llm to be a LanguageModel, got {type(self.llm)}")
         
         if not self.tools:
             raise ValueError("Tools are required for the executor")

@@ -37,6 +37,7 @@ try:
     from langchain.schema.language_model import BaseLanguageModel
     from langchain.schema.runnable import Runnable
     from langchain.tools.base import BaseTool
+    from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
 except ImportError:
     try:
         # Try with newer imports
@@ -44,6 +45,7 @@ except ImportError:
         from langchain_core.language_models import BaseLanguageModel
         from langchain_core.runnables import Runnable
         from langchain_core.tools import BaseTool
+        from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
     except ImportError:
         logger.warning("Could not import LangChain base components")
 
