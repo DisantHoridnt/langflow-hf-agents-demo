@@ -107,13 +107,11 @@ class ReActAgentComponent(LCToolsAgentComponent):
         ])
         
         # Create the ReAct agent
-        agent = create_react_agent(
+        return create_react_agent(
             llm=self.llm,
             tools=self.tools,
             prompt=prompt,
         )
-        
-        return agent
     
     def build_agent(self) -> AgentExecutor:
         """Build and configure the AgentExecutor for the ReAct agent."""

@@ -13,6 +13,7 @@ from langchain.agents.format_scratchpad.openai_tools import (
 )
 from langchain.agents.output_parsers.openai_tools import OpenAIToolsAgentOutputParser
 from langchain.callbacks.base import BaseCallbackHandler
+from langchain.chains import LLMChain
 from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder, PromptTemplate
 from langchain_core.language_models.base import BaseLanguageModel
 from langchain_core.runnables import Runnable
@@ -21,6 +22,7 @@ from langchain_experimental.plan_and_execute import (
     load_agent_executor,
     load_chat_planner,
 )
+from langchain.agents import create_react_agent
 
 from langflow.base.agents.agent import LCToolsAgentComponent
 from langflow.field_typing import LanguageModel, Tool, BaseMemory
@@ -83,7 +85,7 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             advanced=True,
         ),
         IntInput(
-            name="max_execution_iterations",
+            name="max_subtask_iterations",
             display_name="Max Execution Iterations",
             info="Maximum iterations for each execution step.",
             value=5,
@@ -109,20 +111,15 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             setattr(self, key, value)
         return self
     
-    def create_agent_runnable(self) -> Runnable:
-        """Create the Plan-and-Execute agent runnable.
+    def create_planner(self):
+        """Create the planner component for the Plan-and-Execute agent.
         
-        This implements the two-stage approach:
-        1. Planning: Break down the task into steps
-        2. Execution: Carry out each step using available tools
+        This creates a planner that breaks down the task into steps.
         """
         if not isinstance(self.llm, BaseLanguageModel):
             raise ValueError(f"Expected llm to be a BaseLanguageModel, got {type(self.llm)}")
         
-        if not self.tools:
-            raise ValueError("Tools are required for the Plan-and-Execute agent")
-        
-        # Create the planner
+        # Create the planner prompt template
         planner_prompt = PromptTemplate.from_template(
             "You are a planner that creates a plan to solve a task.\n"
             "{planner_prompt}\n\n"
@@ -130,13 +127,24 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             "Please create a plan with clear steps. For each step, explain briefly what needs to be done."
         )
         
-        planner = load_chat_planner(
+        # Create the planner chain
+        return LLMChain(
             llm=self.llm,
             prompt=planner_prompt,
-            planner_prompt=self.planner_prompt
         )
+    
+    def create_executor(self):
+        """Create the executor component for the Plan-and-Execute agent.
         
-        # Create the executor
+        This creates an executor that carries out each step of the plan using available tools.
+        """
+        if not isinstance(self.llm, BaseLanguageModel):
+            raise ValueError(f"Expected llm to be a BaseLanguageModel, got {type(self.llm)}")
+        
+        if not self.tools:
+            raise ValueError("Tools are required for the executor")
+        
+        # Create the executor prompt
         executor_prompt = ChatPromptTemplate.from_messages([
             ("system", self.system_prompt),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
@@ -144,53 +152,76 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             MessagesPlaceholder(variable_name="agent_scratchpad"),
         ])
         
+        # Create the executor agent
+        agent = create_react_agent(
+            llm=self.llm,
+            tools=self.tools,
+            prompt=executor_prompt,
+        )
+        
         # Get callbacks if available
         callbacks: List[BaseCallbackHandler] = []
         if hasattr(self, "get_langchain_callbacks"):
             callbacks = self.get_langchain_callbacks()
         
-        executor = load_agent_executor(
-            llm=self.llm,
+        # Create the executor
+        return AgentExecutor.from_agent_and_tools(
+            agent=agent,
             tools=self.tools,
-            prompt=executor_prompt,
             verbose=self.verbose,
-            max_iterations=self.max_execution_iterations,
+            max_iterations=self.max_subtask_iterations,
             handle_parsing_errors=self.handle_parsing_errors,
             callbacks=callbacks,
         )
+    
+    def create_agent_runnable(self) -> Runnable:
+        """Create the Plan-and-Execute agent runnable.
+        
+        This implements the two-stage approach:
+        1. Planning: Break down the task into steps
+        2. Execution: Carry out each step using available tools
+        """
+        planner = self.create_planner()
+        executor = self.create_executor()
+        
+        # Get callbacks if available
+        callbacks: List[BaseCallbackHandler] = []
+        if hasattr(self, "get_langchain_callbacks"):
+            callbacks = self.get_langchain_callbacks()
         
         # Create the Plan-and-Execute agent
         return PlanAndExecute(
             planner=planner,
             executor=executor,
             verbose=self.verbose,
+            max_iterations=self.max_iterations,
             callbacks=callbacks,
         )
     
     def build_agent(self) -> AgentExecutor:
         """Build the Plan-and-Execute agent.
         
-        The PlanAndExecute class from LangChain already provides the executor functionality,
-        so we return it directly.
+        This method validates the tools, creates the planner and executor,
+        and returns the complete Plan-and-Execute agent.
         """
         self.validate_tool_names()
-        agent = self.create_agent_runnable()
         
-        # Prepare kwargs for the AgentExecutor
-        executor_kwargs = {
-            "agent": agent,
-            "tools": self.tools,
-            "verbose": self.verbose,
-            "max_iterations": self.max_iterations,
-            "handle_parsing_errors": self.handle_parsing_errors,
-        }
+        # Create the planner and executor
+        planner = self.create_planner()
+        executor = self.create_executor()
         
-        # Add memory if provided (for future v2 implementation)
-        if hasattr(self, "memory") and self.memory is not None:
-            executor_kwargs["memory"] = self.memory
+        # Get callbacks if available
+        callbacks: List[BaseCallbackHandler] = []
+        if hasattr(self, "get_langchain_callbacks"):
+            callbacks = self.get_langchain_callbacks()
         
-        # Since PlanAndExecute already has the execution logic, we return it
-        # wrapped in an AgentExecutor for Langflow compatibility
-        executor = AgentExecutor.from_agent_and_tools(**executor_kwargs)
+        # Create the Plan-and-Execute agent
+        agent = PlanAndExecute(
+            planner=planner,
+            executor=executor,
+            verbose=self.verbose,
+            max_iterations=self.max_iterations,
+            callbacks=callbacks,
+        )
         
-        return executor
+        return agent
