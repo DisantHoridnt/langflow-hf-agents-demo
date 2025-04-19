@@ -239,24 +239,39 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             template=self.planner_prompt, # Use the input field value
         )
         
-        # Local import for LLMChain too
+        # Modern approach: Use RunnableSequence (prompt | llm) pattern instead of LLMChain
         try:
-            # First try newer imports
-            from langchain.chains import LLMChain as LocalLLMChain
-            logger.info("Successfully imported LLMChain from langchain.chains")
-        except ImportError:
+            # Import RunnablePassthrough if needed
+            from langchain_core.runnables import RunnablePassthrough
+            logger.info("Using modern RunnableSequence pattern instead of deprecated LLMChain")
+            
+            # Create a chain using the | operator (RunnableSequence)
+            planner_chain = planner_prompt | self.llm
+            
+            # For logging purposes only
+            logger.info("Successfully created planner: RunnableSequence")
+            return planner_chain
+            
+        except ImportError as e:
+            logger.warning(f"Could not use modern RunnableSequence pattern: {e}. Falling back to LLMChain.")
+            # Fallback to LLMChain if needed
             try:
-                # Then try older imports
-                from langchain.chains.llm_chain import LLMChain as LocalLLMChain
-                logger.info("Successfully imported LLMChain from langchain.chains.llm_chain")
+                # First try newer imports
+                from langchain.chains import LLMChain as LocalLLMChain
+                logger.info("Falling back to LLMChain from langchain.chains")
             except ImportError:
-                raise ImportError("Could not import LLMChain from either langchain.chains or langchain.chains.llm_chain")
+                try:
+                    # Then try older imports
+                    from langchain.chains.llm_chain import LLMChain as LocalLLMChain
+                    logger.info("Falling back to LLMChain from langchain.chains.llm_chain")
+                except ImportError:
+                    raise ImportError("Could not import LLMChain from either langchain.chains or langchain.chains.llm_chain")
 
-        # Create the planner chain with locally imported class
-        return LocalLLMChain(
-            llm=self.llm,
-            prompt=planner_prompt,
-        )
+            # Create the planner chain with locally imported class
+            return LocalLLMChain(
+                llm=self.llm,
+                prompt=planner_prompt,
+            )
     
     def create_executor(self):
         """Create the executor component for the Plan-and-Execute agent.

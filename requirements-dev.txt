@@ -1,8 +1,14 @@
 # Development and Testing Dependencies
 
 # Testing Dependencies
-pytest==7.4.4
-pytest-mock
+langchain>=0.0.310
+langchain_community>=0.0.10
+langchain-text-splitters>=0.0.1
+langchain-huggingface>=0.0.2  # For modern HuggingFaceEndpoint support
+python-dotenv>=1.0.0
+pytest>=7.4.0
+pytest-mock>=3.10.0
+langflow>=0.5.0
 pytest-asyncio
 pytest-cov
 ruff

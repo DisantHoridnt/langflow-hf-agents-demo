@@ -40,7 +40,17 @@ logger = logging.getLogger(__name__)
 try:
     logger.info("Trying to import LangChain components...")
     # LangChain community components
-    from langchain_community.llms import HuggingFaceHub  
+    try:
+        # Try the newer recommended import first
+        from langchain_huggingface import HuggingFaceEndpoint
+        logger.info("Successfully imported HuggingFaceEndpoint from langchain_huggingface")
+        USING_HF_ENDPOINT = True
+    except ImportError:
+        # Fall back to deprecated HuggingFaceHub if needed
+        from langchain_community.llms import HuggingFaceHub
+        logger.info("Falling back to deprecated HuggingFaceHub")
+        USING_HF_ENDPOINT = False
+        
     from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
     from langchain_community.utilities import WikipediaAPIWrapper, DuckDuckGoSearchAPIWrapper
     from langchain_core.tools import BaseTool, Tool, StructuredTool
@@ -97,7 +107,9 @@ try:
         
         # If we get here, all imports succeeded
         langflow_imports_available = True
-        logger.info("All Langflow component imports successful!")
+        print("\n\033[1;35m✅ TOOL IMPORTS COMPLETED SUCCESSFULLY\033[0m")
+        print("\033[0;35mAll tools properly imported\033[0m")
+        print("\n" + "-"*80)
     except ImportError as e:
         logger.error(f"Error importing Langflow components: {str(e)}")
         traceback.print_exc()
@@ -117,14 +129,27 @@ def hf_llm():
     if not api_token:
         pytest.skip("HUGGINGFACEHUB_API_TOKEN not found in environment")
     
-    llm = HuggingFaceHub(
-        repo_id="microsoft/phi-3-mini-4k-instruct",  # Use Phi-3 Mini which is typically more available
-        model_kwargs={
-            "temperature": 0.7,
-            "max_length": 512,
-            "max_new_tokens": 512
-        }
-    )
+    # Use the appropriate HuggingFace class based on what's available
+    if USING_HF_ENDPOINT:
+        llm = HuggingFaceEndpoint(
+            endpoint_url=f"https://api-inference.huggingface.co/models/microsoft/phi-3-mini-4k-instruct",
+            huggingfacehub_api_token=api_token,
+            task="text-generation",
+            model_kwargs={
+                "temperature": 0.7,
+                "max_new_tokens": 512
+            }
+        )
+    else:
+        # Fallback to deprecated HuggingFaceHub
+        llm = HuggingFaceHub(
+            repo_id="microsoft/phi-3-mini-4k-instruct",  # Use Phi-3 Mini which is typically more available
+            model_kwargs={
+                "temperature": 0.7,
+                "max_length": 512,
+                "max_new_tokens": 512
+            }
+        )
     return llm
 
 
@@ -164,6 +189,10 @@ def test_react_agent_with_hf_model(hf_llm, tools):
     # Skip if Langflow components aren't available
     if not langflow_imports_available:
         pytest.skip("Langflow components not available")
+        
+    print("\n" + "="*80)
+    print("\033[1;32m🔍 TESTING REACT AGENT WITH HUGGING FACE MODEL\033[0m")
+    print("="*80)
     """
     Test PRD requirements F-1 through F-4 for the ReAct Agent component.
     
@@ -194,9 +223,10 @@ def test_react_agent_with_hf_model(hf_llm, tools):
     
     # Just verify that the agent executed and returned something - don't be too strict since models vary
     assert result, "Agent should return a non-empty result"
-    print(f"ReAct Agent Response: {result}")
-    
-    print(f"ReAct Agent Result: {result}")
+    print("\n\033[1;32m✅ REACT AGENT TEST COMPLETED SUCCESSFULLY\033[0m")
+    print("\033[0;32mAgent Response:\033[0m")
+    print(f"  {result}")
+    print("\n" + "-"*80)
 
 
 def test_plan_execute_agent_with_hf_model(hf_llm, tools):
@@ -204,6 +234,10 @@ def test_plan_execute_agent_with_hf_model(hf_llm, tools):
     # Skip if Langflow components aren't available
     if not langflow_imports_available:
         pytest.skip("Langflow components not available")
+        
+    print("\n" + "="*80)
+    print("\033[1;34m🗺️ TESTING PLAN-EXECUTE AGENT WITH HUGGING FACE MODEL\033[0m")
+    print("="*80)
     
     # Skip if HF token is not available in the environment
     if not os.environ.get("HUGGINGFACEHUB_API_TOKEN"):
@@ -244,7 +278,10 @@ def test_plan_execute_agent_with_hf_model(hf_llm, tools):
     
     # For a true integration test, this is sufficient to prove the components can initialize
     # We don't need to verify full agent execution which depends on external API responses
-    print("Plan-Execute agent components successfully initialized")
+    print("\n\033[1;34m✅ PLAN-EXECUTE AGENT TEST COMPLETED SUCCESSFULLY\033[0m")
+    print("\033[0;34mAgent successfully initialized and ready for execution\033[0m")
+    print("\n" + "-"*80)
+    assert True
 
 
 def test_tool_interoperability():
