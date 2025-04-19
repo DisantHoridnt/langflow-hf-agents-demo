@@ -2,6 +2,7 @@
 langchain==0.0.310
 langchain-core==0.1.8
 langchain-community==0.0.10
+langchainhub # Added for hub.pull
 
 # Model Provider
 huggingface_hub==0.19.4

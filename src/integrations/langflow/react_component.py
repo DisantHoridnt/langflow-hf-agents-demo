@@ -105,57 +105,40 @@ class ReActAgentComponent(LCToolsAgentComponent):
         return self
     
     def create_agent_runnable(self) -> Runnable:
-        """Create the ReAct agent runnable using the provided LLM and tools.
-        
-        This is the core implementation of the ReAct agent pattern.
-        """
-        # Ensure LLM is the correct type using the adapter alias
-        if not isinstance(self.llm, LanguageModel):
-            raise ValueError(f"Expected llm to be a LanguageModel, got {type(self.llm)}")
-        
+        """Create the ReAct agent runnable."""
+        if not self.llm:
+            raise ValueError("Language Model (LLM) is not set.")
         if not self.tools:
-            raise ValueError("Tools are required for the ReAct agent")
-        
-        # Get the default ReAct prompt from Langchain Hub
-        # hwchase17/react is a commonly used default prompt
+            logger.warning("No tools provided for the agent.")
+            tools_list = []
+        else:
+            tools_list = self.tools
+
+        # Get the ReAct prompt
+        # TODO: Make the prompt customizable via input
         prompt = hub.pull("hwchase17/react")
-        
-        # Optional: If you want to customize the system prompt within the hub prompt,
-        # you might need to inspect the `prompt` object and modify its messages.
-        # For now, we'll use the default system message from the hub prompt.
-        
-        # Create the ReAct agent
-        return create_react_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=prompt,
+
+        if not create_react_agent:
+            raise ImportError("create_react_agent function not available from LangChain imports.")
+            
+        # Construct the ReAct agent
+        agent = create_react_agent(self.llm, tools_list, prompt)
+        return agent
+
+    def build_agent(self) -> AgentExecutor:
+        """Build the ReAct agent executor."""
+        if not AgentExecutor:
+            raise ImportError("AgentExecutor class not available from LangChain imports.")
+            
+        agent_runnable = self.create_agent_runnable()
+
+        # Create the AgentExecutor
+        agent_executor = AgentExecutor(
+            agent=agent_runnable,
+            tools=self.tools or [],
+            verbose=self.verbose,
+            max_iterations=self.max_iterations,
+            handle_parsing_errors=self.handle_parsing_errors,
+            # memory=self.memory, # TODO: Integrate memory if provided
         )
-    
-    def build_agent_executor(self) -> AgentExecutor:
-        """Build and configure the AgentExecutor for the ReAct agent."""
-        self.validate_tool_names()
-        
-        # Get callbacks if available (from Langflow integration)
-        callbacks: List[BaseCallbackHandler] = []
-        if hasattr(self, "get_langchain_callbacks"):
-            callbacks = self.get_langchain_callbacks()
-        
-        # Create the agent runnable
-        agent = self.create_agent_runnable()
-        
-        # Create the AgentExecutor with the right configuration
-        executor_kwargs = {
-            "agent": agent,
-            "tools": self.tools,
-            "handle_parsing_errors": self.handle_parsing_errors,
-            "max_iterations": self.max_iterations,
-            "verbose": self.verbose,
-            "callbacks": callbacks,
-        }
-        
-        # Add memory if provided (for future v2 implementation)
-        if hasattr(self, "memory") and self.memory is not None:
-            executor_kwargs["memory"] = self.memory
-        
-        # Create the AgentExecutor with the right configuration
-        return AgentExecutor.from_agent_and_tools(**executor_kwargs)
+        return agent_executor

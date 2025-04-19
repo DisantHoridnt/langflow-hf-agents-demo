@@ -91,7 +91,8 @@ except ImportError as e_old:
 
         from langchain_core.prompts import PromptTemplate as CorePromptTemplate
         logger.info("Successfully imported PromptTemplate (newer)")
-        PromptTemplate = CorePromptTemplate
+        PromptTemplate = CorePromptTemplate # Assign immediately
+        logger.info(f"Assigned PromptTemplate (newer). Current value type: {type(PromptTemplate)}") # Log assignment success and type
 
         logger.info("Assigned newer LangChain imports successfully.")
 
@@ -209,12 +210,22 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         if not isinstance(self.llm, LanguageModel):
             raise ValueError(f"Expected llm to be a LanguageModel, got {type(self.llm)}")
         
-        # Create the planner prompt template
+        # Check if system prompt is provided
+        if not self.system_prompt:
+            raise ValueError("System Prompt is required for the planner.")
+
+        # --- Add explicit check for PromptTemplate --- 
+        if PromptTemplate is None:
+            logger.error("CRITICAL: PromptTemplate is None right before usage in create_planner.")
+            # Re-log the state for debugging, maybe it changed?
+            logger.error(f"Re-Checking essential components: PromptTemplate={PromptTemplate is not None}, LLMChain={LLMChain is not None}, BaseLanguageModel={BaseLanguageModel is not None}")
+            raise ImportError("PromptTemplate was not imported correctly or became None before create_planner execution.")
+        # --- End check ---
+
+        # Construct the planner prompt template using the class-level attribute
+        logger.info(f"Using PromptTemplate type: {type(PromptTemplate)}")
         planner_prompt = PromptTemplate.from_template(
-            "You are a planner that creates a plan to solve a task.\n"
-            "{planner_prompt}\n\n"
-            "User's request: {input}\n\n"
-            "Please create a plan with clear steps. For each step, explain briefly what needs to be done."
+            template=self.planner_prompt, # Use the input field value
         )
         
         # Create the planner chain
