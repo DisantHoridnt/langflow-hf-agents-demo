@@ -12,70 +12,112 @@ from typing import Dict, List, Optional, Union, Any
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# Initialize names to None
+PromptTemplate = None
+LLMChain = None
+AgentExecutor = None
+create_react_agent = None
+PlanAndExecute = None
+PlanningOutputParser = None
+BaseChatMemory = None
+BaseLanguageModel = None
+BaseTool = None
+
 # Import from LangChain with fallbacks for different versions
+logger.info("Attempting LangChain imports (older style)...")
 try:
-    from langchain.agents import AgentExecutor
-    from langchain.agents.react.agent import create_react_agent
-    from langchain.agents.plan_and_execute.agent import PlanAndExecute
-    from langchain.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser
-    from langchain.chains.llm_chain import LLMChain
-    from langchain.memory.chat_memory import BaseChatMemory
-    from langchain.schema.language_model import BaseLanguageModel
-    from langchain.tools.base import BaseTool
-except ImportError:
+    from langchain.agents import AgentExecutor as LangchainAgentExecutor
+    logger.info("Successfully imported AgentExecutor (older)")
+    from langchain.agents.react.agent import create_react_agent as LangchainCreateReactAgent
+    logger.info("Successfully imported create_react_agent (older)")
+    from langchain.agents.plan_and_execute.agent import PlanAndExecute as LangchainPlanAndExecute
+    logger.info("Successfully imported PlanAndExecute (older)")
+    from langchain.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser as LangchainPlanningOutputParser
+    logger.info("Successfully imported PlanningOutputParser (older)")
+    from langchain.chains.llm_chain import LLMChain as LangchainLLMChain
+    logger.info("Successfully imported LLMChain (older)")
+    from langchain.memory.chat_memory import BaseChatMemory as LangchainBaseChatMemory
+    logger.info("Successfully imported BaseChatMemory (older)")
+    from langchain.schema.language_model import BaseLanguageModel as LangchainBaseLanguageModel
+    logger.info("Successfully imported BaseLanguageModel (older)")
+    from langchain.tools.base import BaseTool as LangchainBaseTool
+    logger.info("Successfully imported BaseTool (older)")
+    from langchain.prompts import PromptTemplate as LangchainPromptTemplate
+    logger.info("Successfully imported PromptTemplate (older)")
+
+    AgentExecutor = LangchainAgentExecutor
+    create_react_agent = LangchainCreateReactAgent
+    PlanAndExecute = LangchainPlanAndExecute
+    PlanningOutputParser = LangchainPlanningOutputParser
+    LLMChain = LangchainLLMChain
+    BaseChatMemory = LangchainBaseChatMemory
+    BaseLanguageModel = LangchainBaseLanguageModel
+    BaseTool = LangchainBaseTool
+    PromptTemplate = LangchainPromptTemplate
+    logger.info("Assigned older LangChain imports successfully.")
+
+except ImportError as e_old:
+    logger.warning(f"Older LangChain imports failed: {e_old}. Attempting newer style imports...")
     try:
         # Try with newer imports from langchain_* namespace
-        from langchain_core.agents import AgentExecutor
-        from langchain_community.agents.react.agent import create_react_agent
-        from langchain_community.agents.plan_and_execute.agent import PlanAndExecute
-        from langchain_community.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser
-        from langchain_core.chains import LLMChain
-        from langchain_core.memory import BaseChatMemory
-        from langchain_core.language_models import BaseLanguageModel
-        from langchain_core.tools import BaseTool
-    except ImportError:
-        logger.warning("Could not import LangChain components")
+        logger.info("Attempting LangChain imports (newer style)...")
+        from langchain_core.agents import AgentExecutor as CoreAgentExecutor
+        logger.info("Successfully imported AgentExecutor (newer)")
+        AgentExecutor = CoreAgentExecutor
+
+        from langchain_community.agents.react.agent import create_react_agent as CommunityCreateReactAgent
+        logger.info("Successfully imported create_react_agent (newer)")
+        create_react_agent = CommunityCreateReactAgent
+
+        # PlanAndExecute might still be experimental or have different paths
+        # from langchain_community.agents.plan_and_execute.agent import PlanAndExecute as CommunityPlanAndExecute
+        # from langchain_community.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser as CommunityPlanningOutputParser
+        
+        from langchain.chains import LLMChain as CoreLLMChain # Langchain 0.1.x path
+        logger.info("Successfully imported LLMChain (newer style path: langchain.chains)")
+        LLMChain = CoreLLMChain
+
+        from langchain_core.memory import BaseChatMemory as CoreBaseChatMemory
+        logger.info("Successfully imported BaseChatMemory (newer)")
+        BaseChatMemory = CoreBaseChatMemory
+
+        from langchain_core.language_models import BaseLanguageModel as CoreBaseLanguageModel
+        logger.info("Successfully imported BaseLanguageModel (newer)")
+        BaseLanguageModel = CoreBaseLanguageModel
+
+        from langchain_core.tools import BaseTool as CoreBaseTool
+        logger.info("Successfully imported BaseTool (newer)")
+        BaseTool = CoreBaseTool
+
+        from langchain_core.prompts import PromptTemplate as CorePromptTemplate
+        logger.info("Successfully imported PromptTemplate (newer)")
+        PromptTemplate = CorePromptTemplate
+
+        logger.info("Assigned newer LangChain imports successfully.")
+
+    except ImportError as e_new:
+        logger.error(f"Newer LangChain imports also failed: {e_new}")
+        # Set required components to None if secondary import fails
+        PromptTemplate = None
+        LLMChain = None
+        BaseLanguageModel = None # Ensure this is also reset if newer imports fail
+
+# Check if essential imports were successful before proceeding
+logger.info(f"Checking essential components: PromptTemplate={PromptTemplate is not None}, LLMChain={LLMChain is not None}, BaseLanguageModel={BaseLanguageModel is not None}")
+if PromptTemplate is None or LLMChain is None or BaseLanguageModel is None:
+    logger.error(
+        "Could not import essential LangChain components (PromptTemplate, LLMChain, BaseLanguageModel). "
+        "Please ensure LangChain is installed correctly."
+    )
 
 # Import from our adapter layer instead of directly from Langflow
-from .adapters import LCToolsAgentComponent, LanguageModel, Tool, BaseMemory
+from .adapters import LCToolsAgentComponent, LanguageModel, Tool, BaseMemory, BoolInput, IntInput, MultilineInput
 from langchain_core.runnables import Runnable
 from langchain_experimental.plan_and_execute import (
     PlanAndExecute,
     load_agent_executor,
     load_chat_planner,
 )
-
-# Import Langflow input types or use our own if not available
-try:
-    from langflow.io import BoolInput, IntInput, MultilineInput
-except ImportError:
-    logger.warning("Could not import Langflow input types - using fallbacks")
-    
-    # Define basic input types if imports fail
-    class MultilineInput:
-        def __init__(self, *, name, display_name, info, value, advanced=False):
-            self.name = name
-            self.display_name = display_name
-            self.info = info
-            self.value = value
-            self.advanced = advanced
-
-    class IntInput:
-        def __init__(self, *, name, display_name, info, value, advanced=False):
-            self.name = name
-            self.display_name = display_name
-            self.info = info
-            self.value = value
-            self.advanced = advanced
-
-    class BoolInput:
-        def __init__(self, *, name, display_name, info, value, advanced=False):
-            self.name = name
-            self.display_name = display_name
-            self.info = info
-            self.value = value
-            self.advanced = advanced
-
 
 class PlanExecuteAgentComponent(LCToolsAgentComponent):
     """Plan-and-Execute Agent Component for Langflow.
@@ -84,7 +126,7 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
     Works with any LLM, including open-source models hosted on Hugging Face.
     """
 
-    display_name: str = "Plan-Execute Agent"
+    display_name: str = "Plan-and-Execute Agent"
     description: str = (
         "Agent using the Plan-and-Execute approach that works with any LLM, "
         "including open-source models from Hugging Face."
@@ -193,6 +235,13 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             raise ValueError("Tools are required for the executor")
         
         # Create the executor prompt
+        # We need ChatPromptTemplate and MessagesPlaceholder here as well
+        # Let's import them dynamically within the method for now to avoid NameErrors
+        try:
+            from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+        except ImportError:
+            from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+            
         executor_prompt = ChatPromptTemplate.from_messages([
             ("system", self.system_prompt),
             MessagesPlaceholder(variable_name="chat_history", optional=True),
@@ -201,6 +250,10 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         ])
         
         # Create the executor agent
+        # Ensure create_react_agent was imported
+        if create_react_agent is None:
+             raise ImportError("Could not import create_react_agent. Check LangChain installation.")
+             
         agent = create_react_agent(
             llm=self.llm,
             tools=self.tools,
@@ -213,6 +266,10 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             callbacks = self.get_langchain_callbacks()
         
         # Create the executor
+        # Ensure AgentExecutor was imported
+        if AgentExecutor is None:
+            raise ImportError("Could not import AgentExecutor. Check LangChain installation.")
+            
         return AgentExecutor.from_agent_and_tools(
             agent=agent,
             tools=self.tools,
@@ -236,6 +293,13 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         callbacks: List[BaseCallbackHandler] = []
         if hasattr(self, "get_langchain_callbacks"):
             callbacks = self.get_langchain_callbacks()
+        
+        # Ensure planner and executor creation methods exist and imported components are available
+        if load_chat_planner is None or load_agent_executor is None or PlanAndExecute is None:
+            raise ImportError("Could not import necessary components from langchain_experimental. Check installation.")
+            
+        planner = self.create_planner()
+        executor = self.create_executor()
         
         # Create the Plan-and-Execute agent
         return PlanAndExecute(

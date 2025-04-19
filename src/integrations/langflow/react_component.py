@@ -50,39 +50,11 @@ except ImportError:
         logger.warning("Could not import LangChain base components")
 
 # Import our custom adapter instead of directly from Langflow
-from .adapters import LCToolsAgentComponent, LanguageModel, Tool, BaseMemory
+from .adapters import LCToolsAgentComponent, LanguageModel, Tool, BaseMemory, BoolInput, IntInput, MultilineInput
+from langchain import hub
 
-# Import Langflow input types or use our own if not available
-try:
-    from langflow.io import BoolInput, IntInput, MultilineInput
-except ImportError:
-    logger.warning("Could not import Langflow input types - using fallbacks")
-    
-    # Define basic input types if imports fail
-    class MultilineInput:
-        def __init__(self, *, name, display_name, info, value, advanced=False):
-            self.name = name
-            self.display_name = display_name
-            self.info = info
-            self.value = value
-            self.advanced = advanced
-
-    class IntInput:
-        def __init__(self, *, name, display_name, info, value, advanced=False):
-            self.name = name
-            self.display_name = display_name
-            self.info = info
-            self.value = value
-            self.advanced = advanced
-
-    class BoolInput:
-        def __init__(self, *, name, display_name, info, value, advanced=False):
-            self.name = name
-            self.display_name = display_name
-            self.info = info
-            self.value = value
-            self.advanced = advanced
-
+# Define a constant for the default system prompt
+DEFAULT_SYSTEM_PROMPT = """Assistant is a large language model trained by Google."""
 
 class ReActAgentComponent(LCToolsAgentComponent):
     """ReAct Agent Component for Langflow.
@@ -92,28 +64,12 @@ class ReActAgentComponent(LCToolsAgentComponent):
     """
 
     display_name: str = "ReAct Agent"
-    description: str = (
-        "Agent using the ReAct (Reasoning and Acting) approach that works with any LLM, "
-        "including open-source models from Hugging Face."
-    )
-    icon = "🤔"
-    beta = False
-    name = "ReActAgentComponent"
-    group = "Agents"
+    description: str = "Construct a ReAct agent from an LLM and tools."
+    documentation: str = "https://python.langchain.com/docs/modules/agents/agent_types/react"
+    icon = "Langchain"
 
     # Define additional inputs specific to the ReAct agent
     inputs = [
-        MultilineInput(
-            name="system_prompt",
-            display_name="System Prompt",
-            info="System instructions to guide the agent's behavior.",
-            value=(
-                "You are a helpful assistant that has access to the following tools. "
-                "You should carefully analyze the user's request and use tools when needed to fulfill it. "
-                "For each tool use, carefully review the results before moving on."
-            ),
-            advanced=False,
-        ),
         BoolInput(
             name="verbose",
             display_name="Verbose",
@@ -153,19 +109,20 @@ class ReActAgentComponent(LCToolsAgentComponent):
         
         This is the core implementation of the ReAct agent pattern.
         """
-        if not isinstance(self.llm, BaseLanguageModel):
-            raise ValueError(f"Expected llm to be a BaseLanguageModel, got {type(self.llm)}")
+        # Ensure LLM is the correct type using the adapter alias
+        if not isinstance(self.llm, LanguageModel):
+            raise ValueError(f"Expected llm to be a LanguageModel, got {type(self.llm)}")
         
         if not self.tools:
             raise ValueError("Tools are required for the ReAct agent")
         
-        # Create the prompt template with the right structure for ReAct
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
+        # Get the default ReAct prompt from Langchain Hub
+        # hwchase17/react is a commonly used default prompt
+        prompt = hub.pull("hwchase17/react")
+        
+        # Optional: If you want to customize the system prompt within the hub prompt,
+        # you might need to inspect the `prompt` object and modify its messages.
+        # For now, we'll use the default system message from the hub prompt.
         
         # Create the ReAct agent
         return create_react_agent(
@@ -174,7 +131,7 @@ class ReActAgentComponent(LCToolsAgentComponent):
             prompt=prompt,
         )
     
-    def build_agent(self) -> AgentExecutor:
+    def build_agent_executor(self) -> AgentExecutor:
         """Build and configure the AgentExecutor for the ReAct agent."""
         self.validate_tool_names()
         

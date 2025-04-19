@@ -66,6 +66,31 @@ except ImportError:
                 """Build the component."""
                 raise NotImplementedError("This is a mock base class")
 
+# --- Fallback Input Classes (if langflow.io is not available) ---
+# These provide basic structure for component input definitions.
+class MultilineInput:
+    def __init__(self, *, name: str, display_name: str = "", info: str = "", value: str = "", advanced: bool = False):
+        self.name = name
+        self.display_name = display_name or name
+        self.info = info
+        self.value = value
+        self.advanced = advanced
+
+class IntInput:
+    def __init__(self, *, name: str, display_name: str = "", info: str = "", value: int = 0, advanced: bool = False):
+        self.name = name
+        self.display_name = display_name or name
+        self.info = info
+        self.value = value
+        self.advanced = advanced
+
+class BoolInput:
+    def __init__(self, *, name: str, display_name: str = "", info: str = "", value: bool = False, advanced: bool = False):
+        self.name = name
+        self.display_name = display_name or name
+        self.info = info
+        self.value = value
+        self.advanced = advanced
 
 # Create our own LCToolsAgentComponent if the original isn't available
 class LCToolsAgentComponent(Component):
