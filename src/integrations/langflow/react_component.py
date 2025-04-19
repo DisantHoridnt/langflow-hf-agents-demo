@@ -10,7 +10,7 @@ import logging
 from typing import Any, List, Optional
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Import from LangChain - using try/except for flexibility

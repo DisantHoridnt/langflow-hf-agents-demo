@@ -9,7 +9,7 @@ import logging
 from typing import Dict, List, Optional, Union, Any
 
 # Configure logging
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.WARNING)
 logger = logging.getLogger(__name__)
 
 # Initialize names to None
@@ -24,26 +24,26 @@ BaseLanguageModel = None
 BaseTool = None
 
 # Import from LangChain with fallbacks for different versions
-logger.info("Attempting LangChain imports (older style)...")
+logger.debug("Attempting LangChain imports (older style)...")
 try:
     from langchain.agents import AgentExecutor as LangchainAgentExecutor
-    logger.info("Successfully imported AgentExecutor (older)")
+    logger.debug("Successfully imported AgentExecutor (older)")
     from langchain.agents.react.agent import create_react_agent as LangchainCreateReactAgent
-    logger.info("Successfully imported create_react_agent (older)")
+    logger.debug("Successfully imported create_react_agent (older)")
     from langchain.agents.plan_and_execute.agent import PlanAndExecute as LangchainPlanAndExecute
-    logger.info("Successfully imported PlanAndExecute (older)")
+    logger.debug("Successfully imported PlanAndExecute (older)")
     from langchain.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser as LangchainPlanningOutputParser
-    logger.info("Successfully imported PlanningOutputParser (older)")
+    logger.debug("Successfully imported PlanningOutputParser (older)")
     from langchain.chains.llm_chain import LLMChain as LangchainLLMChain
-    logger.info("Successfully imported LLMChain (older)")
+    logger.debug("Successfully imported LLMChain (older)")
     from langchain.memory.chat_memory import BaseChatMemory as LangchainBaseChatMemory
-    logger.info("Successfully imported BaseChatMemory (older)")
+    logger.debug("Successfully imported BaseChatMemory (older)")
     from langchain.schema.language_model import BaseLanguageModel as LangchainBaseLanguageModel
-    logger.info("Successfully imported BaseLanguageModel (older)")
+    logger.debug("Successfully imported BaseLanguageModel (older)")
     from langchain.tools.base import BaseTool as LangchainBaseTool
-    logger.info("Successfully imported BaseTool (older)")
+    logger.debug("Successfully imported BaseTool (older)")
     from langchain.prompts import PromptTemplate as LangchainPromptTemplate
-    logger.info("Successfully imported PromptTemplate (older)")
+    logger.debug("Successfully imported PromptTemplate (older)")
 
     AgentExecutor = LangchainAgentExecutor
     create_react_agent = LangchainCreateReactAgent
@@ -54,19 +54,19 @@ try:
     BaseLanguageModel = LangchainBaseLanguageModel
     BaseTool = LangchainBaseTool
     PromptTemplate = LangchainPromptTemplate
-    logger.info("Assigned older LangChain imports successfully.")
+    logger.debug("Assigned older LangChain imports successfully.")
 
 except ImportError as e_old:
     logger.warning(f"Older LangChain imports failed: {e_old}. Attempting newer style imports...")
     try:
         # Try with newer imports from langchain_* namespace
-        logger.info("Attempting LangChain imports (newer style)...")
+        logger.debug("Attempting LangChain imports (newer style)...")
         from langchain_core.agents import AgentExecutor as CoreAgentExecutor
-        logger.info("Successfully imported AgentExecutor (newer)")
+        logger.debug("Successfully imported AgentExecutor (newer)")
         AgentExecutor = CoreAgentExecutor
 
         from langchain_community.agents.react.agent import create_react_agent as CommunityCreateReactAgent
-        logger.info("Successfully imported create_react_agent (newer)")
+        logger.debug("Successfully imported create_react_agent (newer)")
         create_react_agent = CommunityCreateReactAgent
 
         # PlanAndExecute might still be experimental or have different paths
@@ -74,27 +74,27 @@ except ImportError as e_old:
         # from langchain_community.agents.plan_and_execute.planners.chat_planner import PlanningOutputParser as CommunityPlanningOutputParser
         
         from langchain.chains import LLMChain as CoreLLMChain # Langchain 0.1.x path
-        logger.info("Successfully imported LLMChain (newer style path: langchain.chains)")
+        logger.debug("Successfully imported LLMChain (newer style path: langchain.chains)")
         LLMChain = CoreLLMChain
 
         from langchain_core.memory import BaseChatMemory as CoreBaseChatMemory
-        logger.info("Successfully imported BaseChatMemory (newer)")
+        logger.debug("Successfully imported BaseChatMemory (newer)")
         BaseChatMemory = CoreBaseChatMemory
 
         from langchain_core.language_models import BaseLanguageModel as CoreBaseLanguageModel
-        logger.info("Successfully imported BaseLanguageModel (newer)")
+        logger.debug("Successfully imported BaseLanguageModel (newer)")
         BaseLanguageModel = CoreBaseLanguageModel
 
         from langchain_core.tools import BaseTool as CoreBaseTool
-        logger.info("Successfully imported BaseTool (newer)")
+        logger.debug("Successfully imported BaseTool (newer)")
         BaseTool = CoreBaseTool
 
         from langchain_core.prompts import PromptTemplate as CorePromptTemplate
-        logger.info("Successfully imported PromptTemplate (newer)")
+        logger.debug("Successfully imported PromptTemplate (newer)")
         PromptTemplate = CorePromptTemplate # Assign immediately
-        logger.info(f"Assigned PromptTemplate (newer). Current value type: {type(PromptTemplate)}") # Log assignment success and type
+        logger.debug(f"Assigned PromptTemplate (newer). Current value type: {type(PromptTemplate)}") # Log assignment success and type
 
-        logger.info("Assigned newer LangChain imports successfully.")
+        logger.debug("Assigned newer LangChain imports successfully.")
 
     except ImportError as e_new:
         logger.error(f"Newer LangChain imports also failed: {e_new}")
@@ -104,7 +104,7 @@ except ImportError as e_old:
         BaseLanguageModel = None # Ensure this is also reset if newer imports fail
 
 # Check if essential imports were successful before proceeding
-logger.info(f"Checking essential components: PromptTemplate={PromptTemplate is not None}, LLMChain={LLMChain is not None}, BaseLanguageModel={BaseLanguageModel is not None}")
+logger.debug(f"Checking essential components: PromptTemplate={PromptTemplate is not None}, LLMChain={LLMChain is not None}, BaseLanguageModel={BaseLanguageModel is not None}")
 if PromptTemplate is None or LLMChain is None or BaseLanguageModel is None:
     logger.error(
         "Could not import essential LangChain components (PromptTemplate, LLMChain, BaseLanguageModel). "
@@ -221,20 +221,20 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         # Local import of necessary components to avoid depending on global imports
         try:
             # First try langchain_core (newer versions)
-            logger.info("Attempting to import PromptTemplate from langchain_core.prompts")
+            logger.debug("Attempting to import PromptTemplate from langchain_core.prompts")
             from langchain_core.prompts import PromptTemplate as LocalPromptTemplate
-            logger.info("Successfully imported PromptTemplate from langchain_core.prompts")
+            logger.debug("Successfully imported PromptTemplate from langchain_core.prompts")
         except ImportError:
             try:
                 # Then try langchain (older versions)
-                logger.info("Attempting to import PromptTemplate from langchain.prompts")
+                logger.debug("Attempting to import PromptTemplate from langchain.prompts")
                 from langchain.prompts import PromptTemplate as LocalPromptTemplate
-                logger.info("Successfully imported PromptTemplate from langchain.prompts")
+                logger.debug("Successfully imported PromptTemplate from langchain.prompts")
             except ImportError:
                 raise ImportError("Could not import PromptTemplate from either langchain_core.prompts or langchain.prompts")
 
         # Construct the planner prompt template using local import
-        logger.info(f"Using locally imported PromptTemplate")
+        logger.debug(f"Using locally imported PromptTemplate")
         planner_prompt = LocalPromptTemplate.from_template(
             template=self.planner_prompt, # Use the input field value
         )
@@ -243,13 +243,13 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         try:
             # Import RunnablePassthrough if needed
             from langchain_core.runnables import RunnablePassthrough
-            logger.info("Using modern RunnableSequence pattern instead of deprecated LLMChain")
+            logger.debug("Using modern RunnableSequence pattern instead of deprecated LLMChain")
             
             # Create a chain using the | operator (RunnableSequence)
             planner_chain = planner_prompt | self.llm
             
             # For logging purposes only
-            logger.info("Successfully created planner: RunnableSequence")
+            logger.debug("Successfully created planner: RunnableSequence")
             return planner_chain
             
         except ImportError as e:
@@ -258,12 +258,12 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             try:
                 # First try newer imports
                 from langchain.chains import LLMChain as LocalLLMChain
-                logger.info("Falling back to LLMChain from langchain.chains")
+                logger.debug("Falling back to LLMChain from langchain.chains")
             except ImportError:
                 try:
                     # Then try older imports
                     from langchain.chains.llm_chain import LLMChain as LocalLLMChain
-                    logger.info("Falling back to LLMChain from langchain.chains.llm_chain")
+                    logger.debug("Falling back to LLMChain from langchain.chains.llm_chain")
                 except ImportError:
                     raise ImportError("Could not import LLMChain from either langchain.chains or langchain.chains.llm_chain")
 
@@ -317,12 +317,12 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         try:
             # Try newer imports first
             from langchain_community.agents.react.agent import create_react_agent as local_create_react_agent
-            logger.info("Successfully imported create_react_agent from langchain_community")
+            logger.debug("Successfully imported create_react_agent from langchain_community")
         except ImportError:
             try:
                 # Try older imports
                 from langchain.agents.react.agent import create_react_agent as local_create_react_agent
-                logger.info("Successfully imported create_react_agent from langchain")
+                logger.debug("Successfully imported create_react_agent from langchain")
             except ImportError:
                 raise ImportError("Could not import create_react_agent from either langchain_community or langchain")
         
@@ -342,12 +342,12 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
         try:
             # Try newer imports first
             from langchain_core.agents import AgentExecutor as LocalAgentExecutor
-            logger.info("Successfully imported AgentExecutor from langchain_core")
+            logger.debug("Successfully imported AgentExecutor from langchain_core")
         except ImportError:
             try:
                 # Try older imports
                 from langchain.agents import AgentExecutor as LocalAgentExecutor
-                logger.info("Successfully imported AgentExecutor from langchain")
+                logger.debug("Successfully imported AgentExecutor from langchain")
             except ImportError:
                 raise ImportError("Could not import AgentExecutor from either langchain_core or langchain")
         
