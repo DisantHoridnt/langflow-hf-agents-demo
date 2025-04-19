@@ -1,0 +1,9 @@
+# Development and Testing Dependencies
+
+# Testing Dependencies
+pytest==7.4.4
+
+# Development Dependencies
+black==23.3.0
+isort==5.12.0
+flake8==6.0.0

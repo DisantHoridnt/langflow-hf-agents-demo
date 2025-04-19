@@ -91,27 +91,93 @@ To use the Langflow components:
 
 ## Setup Instructions
 
-1. Activate the virtual environment:
+### Option 1: Docker Setup (Recommended)
+
+This project uses Docker to handle dependency conflicts between core requirements and Langflow. The containerized setup provides consistent environments for development and testing.
+
+#### Prerequisites
+- Docker and Docker Compose installed on your system
+
+#### Quick Start
+
+1. Build the Docker images:
    ```bash
-   source venv/bin/activate
+   make build
    ```
 
-2. Install the required dependencies:
+2. Run unit tests (no Langflow dependency):
+   ```bash
+   make unit-tests
+   ```
+
+3. Run integration tests (with Langflow):
+   ```bash
+   make integration-tests
+   ```
+
+4. Start the development environment with Langflow:
+   ```bash
+   make dev
+   ```
+
+5. Access the Langflow UI at http://localhost:7860
+
+#### How Our Docker-Langflow Integration Works
+
+We use a specialized Docker setup to properly install and run Langflow without dependency conflicts:
+
+1. **Isolated Virtual Environments**: 
+   - `/opt/venv-core`: Contains core dependencies for standalone functionality
+   - `/opt/venv-langflow`: Contains Langflow and minimal dependencies
+
+2. **Dependency Isolation**: Each environment has its own Python interpreter and packages, preventing conflicts
+
+3. **Activation Scripts**: Simple scripts (`/activate-core.sh` and `/activate-langflow.sh`) handle environment switching
+
+4. **Volume Mapping**: The `langflow_cache` volume persists Langflow settings between container restarts
+
+5. **Environment Variables**: The container automatically sets `LANGFLOW_COMPONENT_PATH` to load our custom components
+
+#### Environment Variables
+
+Create a `.env` file with the following variables:
+```
+HUGGINGFACEHUB_API_TOKEN=your_huggingface_token
+```
+
+### Option 2: Manual Setup
+
+1. Activate a virtual environment:
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+2. Install the core dependencies:
    ```bash
    pip install -r requirements.txt
+   pip install -e .
    ```
 
-3. Set the environment variable to load our custom components:
+3. For Langflow integration, create a separate environment:
    ```bash
-   export LANGFLOW_COMPONENT_PATH=$PWD/custom_components
+   python -m venv langflow-env
+   source langflow-env/bin/activate  # On Windows: langflow-env\Scripts\activate
+   pip install langflow
+   pip install -e .
    ```
 
-4. Run Langflow:
+4. Set the environment variable to load our custom components:
+   ```bash
+   export LANGFLOW_COMPONENT_PATH=/path/to/project/src/integrations/langflow
+   ```
+
+5. Run Langflow:
    ```bash
    langflow run
    ```
 
-5. Access the Langflow UI at http://localhost:7860
+6. Access the Langflow UI at http://localhost:7860
 
 ## Demo Scenarios
 
@@ -139,8 +205,38 @@ To use the Langflow components:
 4. **Full tool support**: Uses standard LangChain tools with no code changes
 5. **Flexible architecture**: Supports both ReAct and Plan-and-Execute patterns
 
+## Testing Strategy
+
+The project has a well-organized testing structure:
+
+- **Unit Tests**: Located in `tests/unit/` - Test core functionality without Langflow dependencies
+- **Integration Tests**: Located in `tests/integration/` - Test Langflow integration with Docker-managed dependencies
+
+### Running Tests
+
+#### Using Docker (Recommended)
+```bash
+# All tests
+make all-tests
+
+# Unit tests only
+make unit-tests
+
+# Integration tests only
+make integration-tests
+```
+
+#### Manually
+```bash
+# Unit tests
+python -m pytest tests/unit
+
+# Integration tests (requires Langflow)
+python -m pytest tests/integration
+```
+
 ## Additional Resources
 
-- Documentation: See `custom_components/hf_native_agents/README.md` 
-- Sample Flows: Available in `custom_components/hf_native_agents/sample_flows/`
-- Test Suite: Run with `pytest custom_components/hf_native_agents/tests/`
+- Documentation: See `docs/` directory
+- Sample Flows: Available in `reference_flows/`
+- Docker Configuration: See `Dockerfile` and `docker-compose.yml`

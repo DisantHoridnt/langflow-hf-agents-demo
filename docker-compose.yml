@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  # Base service for unit tests (doesn't include Langflow)
+  unit-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_LANGFLOW: "false"
+    volumes:
+      - .:/app
+    command: bash -c "source /activate-core.sh && python -m pytest tests/unit -v"
+    environment:
+      - PYTHONPATH=/app
+  
+  # Service for integration tests (includes Langflow)
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_LANGFLOW: "true"
+    volumes:
+      - .:/app
+    command: bash -c "source /activate-langflow.sh && python -m pytest tests/integration -v"
+    environment:
+      - PYTHONPATH=/app
+      - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
+  
+  # Development environment with Langflow
+  dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        INSTALL_LANGFLOW: "true"
+    volumes:
+      - .:/app
+      - langflow_cache:/root/.cache/langflow  # Persist Langflow cache
+    ports:
+      - "7860:7860"  # Langflow UI port
+    command: bash -c "source /activate-langflow.sh && python -m langflow run --host 0.0.0.0 --port 7860"
+    environment:
+      - PYTHONPATH=/app
+      - LANGFLOW_COMPONENT_PATH=/app/src/integrations/langflow
+      - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
+
+volumes:
+  langflow_cache:  # Named volume to persist Langflow cache between restarts

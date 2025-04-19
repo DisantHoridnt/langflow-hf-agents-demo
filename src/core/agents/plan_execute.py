@@ -136,7 +136,7 @@ class StandalonePlanExecuteAgent:
             The result of executing the step
         """
         # Create a simple ReAct-like agent to execute this specific step
-        from .react_agent import StandaloneReActAgent
+        from .react import StandaloneReActAgent
         
         # Create a specialized system prompt for this step
         step_system_prompt = (

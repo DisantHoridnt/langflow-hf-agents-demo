@@ -6,8 +6,13 @@ from setuptools import setup, find_packages
 with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
-with open("requirements.txt", "r", encoding="utf-8") as f:
+# Load core requirements
+with open("requirements-core.txt", "r", encoding="utf-8") as f:
     requirements = [line.strip() for line in f if not line.startswith("#")]
+
+# Load dev requirements
+with open("requirements-dev.txt", "r", encoding="utf-8") as f:
+    dev_requirements = [line.strip() for line in f if not line.startswith("#")]
 
 setup(
     name="hf-agents",
@@ -28,12 +33,7 @@ setup(
     python_requires=">=3.8",
     install_requires=requirements,
     extras_require={
-        "dev": [
-            "black==23.3.0",
-            "isort==5.12.0",
-            "flake8==6.0.0",
-            "pytest==7.4.4",
-        ],
+        "dev": dev_requirements,
         "langflow": ["langflow>=0.5.0"],
     },
 )

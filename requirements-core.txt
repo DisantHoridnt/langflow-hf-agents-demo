@@ -1,0 +1,19 @@
+# Core dependencies for standalone functionality
+
+# LangChain Framework - using consistent modern versions with compatible pins
+langchain>=0.1.0          # Modern namespace-based LangChain
+langchain-core>=0.1.28     # Core abstractions needed across libs
+langchain-text-splitters>=0.0.1  # Text splitting functionality
+langchain-community>=0.0.16  # Community integrations
+
+# Type Checking and Data Validation - using Pydantic V2 which works with new LangChain
+pydantic>=2.5.2,<3.0.0
+typing-extensions>=4.8.0
+
+# Model Provider
+huggingface_hub==0.19.4
+
+# Tools and Utilities
+wikipedia==1.4.0
+duckduckgo-search==3.9.11
+python-dotenv==1.0.0
