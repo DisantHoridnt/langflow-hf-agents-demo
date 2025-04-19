@@ -29,6 +29,8 @@ import os
 import logging
 import sys
 import traceback
+from langchain_core.language_models import BaseLanguageModel
+from langchain_core.prompts import ChatPromptTemplate
 
 # Configure logging for debugging
 logging.basicConfig(level=logging.INFO)
@@ -250,25 +252,25 @@ def test_tool_interoperability():
         pytest.skip("Langflow components not available")
     
     # Create all the tools required by the PRD
-    calculator = CalculatorTool()
+    calculator = SimpleCalculatorTool()
     calc_tool = Tool(
         name="Calculator",
         description="Useful for performing mathematical calculations",
         func=calculator._run
     )
     
-    wiki = WikipediaQueryRun(api_wrapper=WikipediaAPIWrapper())
+    wiki = WikipediaAPIWrapper()
     wiki_tool = Tool(
-        name="Wikipedia",
-        description="Useful for searching for information on Wikipedia",
-        func=wiki._run
+        name="wikipedia",
+        func=WikipediaQueryRun(api_wrapper=wiki).run,
+        description="Useful for searching information on Wikipedia."
     )
     
-    search = DuckDuckGoSearchRun(api_wrapper=DuckDuckGoSearchAPIWrapper())
+    search = DuckDuckGoSearchAPIWrapper()
     search_tool = Tool(
-        name="Search",
-        description="Useful for searching the internet for current information",
-        func=search._run
+        name="duckduckgo_search",
+        func=DuckDuckGoSearchRun(api_wrapper=search).run,
+        description="Useful for searching the internet for current information."
     )
     
     # Create a simple function tool
@@ -283,12 +285,12 @@ def test_tool_interoperability():
     )
     
     # Verify the tools are created correctly
-    tools = [calc_tool, wiki_tool, search_tool, weather_tool]
-    assert len(tools) >= 4, "Should create at least 4 tools for testing"
+    all_tools = [calc_tool, wiki_tool, search_tool, weather_tool]
+    assert len(all_tools) >= 4, "Should create at least 4 tools for testing"
     
     # Verify tool names
-    tool_names = [tool.name for tool in tools]
-    assert "Calculator" in tool_names
-    assert "Wikipedia" in tool_names
-    assert "Search" in tool_names
-    assert "Weather" in tool_names
+    tool_names = [tool.name for tool in all_tools]
+    assert 'Calculator' in tool_names
+    assert 'wikipedia' in tool_names
+    assert 'duckduckgo_search' in tool_names
+    assert 'Weather' in tool_names
