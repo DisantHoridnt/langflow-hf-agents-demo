@@ -122,14 +122,13 @@ def hf_llm():
     
     # Use the appropriate HuggingFace class based on what's available
     if USING_HF_ENDPOINT:
+        # Fix for newer HuggingFaceEndpoint API - parameters must be passed directly
         llm = HuggingFaceEndpoint(
             endpoint_url=f"https://api-inference.huggingface.co/models/microsoft/phi-3-mini-4k-instruct",
             huggingfacehub_api_token=api_token,
             task="text-generation",
-            model_kwargs={
-                "temperature": 0.7,
-                "max_new_tokens": 512
-            }
+            temperature=0.7,
+            max_new_tokens=512
         )
     else:
         # Fallback to deprecated HuggingFaceHub

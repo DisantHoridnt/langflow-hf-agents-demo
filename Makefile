@@ -49,7 +49,7 @@ run-all-integration:
 	docker-compose --env-file .env run --rm integration-tests bash -c "source /activate-environment.sh && python -m pytest tests/integration -v"
 
 # Demo the components with detailed test outputs (for presentations)
-demo-tests:
+demo:
 	@echo "\n\033[1;36m┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓\033[0m"
 	@echo "\033[1;36m┃          💼 LANGFLOW COMPONENTS DEMO            ┃\033[0m"
 	@echo "\033[1;36m┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛\033[0m\n"

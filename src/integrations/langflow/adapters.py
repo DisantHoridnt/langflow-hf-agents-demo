@@ -95,23 +95,79 @@ class BoolInput:
 # Create our own LCToolsAgentComponent if the original isn't available
 class LCToolsAgentComponent(Component):
     """
-    Base class for tools-based agent components.
+    Adapter class for LCToolsAgentComponent.
     
-    This either inherits from the original Langflow class or reimplements
+    This provides a compatible interface with Langflow's agent components, implementing
     the essential functionality when the original isn't available.
     """
     
-    # Define the base inputs that all tools-based agent components need
+    # Define the base inputs that all tools-based agent components need using proper Input objects
+    # Define a fallback Input class in case Langflow imports fail
+    class InputBase:
+        """Fallback Input class when Langflow imports fail."""
+        def __init__(self, name, type=None, default=None, display_name=None, info=None, advanced=False):
+            self.name = name
+            self.type = type
+            self.default = default
+            self.display_name = display_name or name
+            self.info = info
+            self.advanced = advanced
+    
+    # Try different import paths for Langflow's Input class
+    try:
+        from langflow.interface.input_interface import Input
+        logger.info("Using langflow.interface.input_interface.Input")
+    except ImportError:
+        try:
+            from langflow.interface.base import Input
+            logger.info("Using langflow.interface.base.Input")
+        except ImportError:
+            try:
+                from langflow.custom.customs import Input
+                logger.info("Using langflow.custom.customs.Input")
+            except ImportError:
+                # Final fallback to our own implementation
+                logger.warning("Using fallback Input implementation")
+                Input = InputBase
+        
     _base_inputs = [
-        ("llm", LanguageModel, None),
-        ("tools", List[Tool], [])
+        Input(
+            name="llm",
+            type=LanguageModel,
+            default=None,
+            display_name="Language Model",
+            info="The language model to use for the agent"
+        ),
+        Input(
+            name="tools",
+            type=List[Tool],
+            default=[],
+            display_name="Tools",
+            info="The tools available to the agent"
+        )
     ]
     
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        # Initialize component attributes before super().__init__
         self.tools = []
         self.llm = None
         self.memory = None
+        
+        # Convert tuple inputs to proper Input objects if needed
+        if hasattr(self, '_base_inputs') and isinstance(self._base_inputs, list):
+            # Use our already-defined Input class (no new import needed)
+            # Check if any input is in tuple format and convert it
+            for i, input_def in enumerate(self._base_inputs):
+                if isinstance(input_def, tuple):
+                    # Convert tuple to Input object using InputBase directly to avoid circular reference
+                    self._base_inputs[i] = self.InputBase(
+                        name=input_def[0],
+                        type=input_def[1],
+                        default=input_def[2]
+                    )
+        
+        # Call super().__init__ after fixing inputs
+        super().__init__(**kwargs)
         
     def validate_tool_names(self):
         """Validate that tool names are unique."""

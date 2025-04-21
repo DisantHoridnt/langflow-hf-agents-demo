@@ -49,8 +49,45 @@ except ImportError:
     except ImportError:
         logger.warning("Could not import LangChain base components")
 
-# Import our custom adapter instead of directly from Langflow
-from .adapters import LCToolsAgentComponent, LanguageModel, Tool, BaseMemory, BoolInput, IntInput, MultilineInput
+# Import our adapters
+from src.integrations.langflow.adapters import (
+    LCToolsAgentComponent,
+    BoolInput,
+    IntInput,
+    MultilineInput,
+    BaseMemory,
+    Tool,
+    LanguageModel
+)
+
+# Import Input class from our adapter module to ensure consistent fallback behavior
+from .adapters import LCToolsAgentComponent
+
+# Get Input class - this will use our robust import system in adapters.py
+try:
+    # First try to access Input class directly from the LCToolsAgentComponent
+    Input = LCToolsAgentComponent.Input
+except AttributeError:
+    # If not available, try common Langflow paths
+    try:
+        from langflow.interface.input_interface import Input
+    except ImportError:
+        try:
+            from langflow.interface.base import Input
+        except ImportError:
+            try:
+                from langflow.custom.customs import Input
+            except ImportError:
+                # Create our own minimal implementation if nothing works
+                class Input:
+                    def __init__(self, name, type=None, default=None, display_name=None, info=None, advanced=False):
+                        self.name = name
+                        self.type = type
+                        self.default = default
+                        self.display_name = display_name or name
+                        self.info = info
+                        self.advanced = advanced
+
 from langchain import hub
 
 # Define a constant for the default system prompt
@@ -91,7 +128,15 @@ class ReActAgentComponent(LCToolsAgentComponent):
             value=True,
             advanced=True,
         ),
-        ("memory", BaseMemory, None),  # Optional memory input for future v2 implementation
+        # Use proper Input class for memory instead of tuple
+        Input(
+            name="memory",
+            type=BaseMemory,
+            default=None,
+            display_name="Memory",
+            info="Optional memory for conversation history (for future v2 implementation)",
+            advanced=True,
+        ),
         *LCToolsAgentComponent._base_inputs
     ]
     
