@@ -26,7 +26,10 @@ services:
     command: bash -c "source /activate-environment.sh && python -m pytest tests/integration -v"
     environment:
       - PYTHONPATH=/app
+      - LANGFLOW_AUTO_REGISTER_COMPONENTS=true
       - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_CSE_ID=${GOOGLE_CSE_ID}
   
   # Development environment with Langflow
   dev:
@@ -43,8 +46,10 @@ services:
     command: bash -c "source /activate-environment.sh && python -m langflow run --host 0.0.0.0 --port 7860"
     environment:
       - PYTHONPATH=/app
-      - LANGFLOW_COMPONENT_PATH=/app/src/integrations/langflow
+      - LANGFLOW_AUTO_REGISTER_COMPONENTS=true
       - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
+      - GOOGLE_API_KEY=${GOOGLE_API_KEY}
+      - GOOGLE_CSE_ID=9213633ece9ec43e5
 
 volumes:
   langflow_cache:  # Named volume to persist Langflow cache between restarts

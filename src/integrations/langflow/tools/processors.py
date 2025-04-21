@@ -382,13 +382,26 @@ def register_default_processors(registry):
         categories=["math"]
     )
     
-    # Register the search processor
+    # Register the search processor for DuckDuckGo and generic search
     registry.register_processor(
         SearchToolProcessor,
-        tool_names=["search", "ddgsearch", "googlesearch", "bingsearch", "websearch"],
-        patterns=[r".*search.*"],
+        tool_names=["search", "ddgsearch", "bingsearch", "websearch"],
+        patterns=[r".*duck.*go.*", r".*ddg.*", r".*web.*search.*"],
         categories=["search"]
     )
+    
+    # Register the Google Search processor
+    try:
+        from .google_processor import GoogleSearchToolProcessor
+        registry.register_processor(
+            GoogleSearchToolProcessor,
+            tool_names=["google_search", "googlesearch"],
+            patterns=[r".*google.*search.*", r".*search.*google.*"],
+            categories=["google"]
+        )
+        logger.info("Google Search processor registered successfully")
+    except ImportError as e:
+        logger.warning(f"Could not register Google Search processor: {e}")
     
     # Register the Wikipedia processor
     registry.register_processor(
