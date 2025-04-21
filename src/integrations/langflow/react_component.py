@@ -90,8 +90,30 @@ except AttributeError:
 
 from langchain import hub
 
-# Define a constant for the default system prompt
-DEFAULT_SYSTEM_PROMPT = """Assistant is a large language model trained by Google."""
+# Import the scalable tool enhancement system
+from .tools.integration import enhance_tools_for_agent
+
+# Define a constant for the default system prompt with enhanced tool usage examples
+DEFAULT_SYSTEM_PROMPT = """You are a helpful AI assistant that can use tools to answer the user's question.
+Use the provided tools to find information and solve problems step by step.
+
+IMPORTANT TOOL USAGE GUIDE:
+- Wikipedia: Use for factual knowledge and information about topics. Input only the search term.
+  Example: Action: Wikipedia
+           Action Input: France
+
+- Calculator: Use ONLY for mathematical calculations with numbers and operators.
+  Example: Action: Calculator
+           Action Input: 2 + 2
+  Note: Only use operators like +, -, *, /, ^, (), not words or sentences.
+
+- Search: Use for current events or broad web searches. Input only the search query.
+  Example: Action: Search
+           Action Input: latest news about AI
+
+If you receive an error from a tool, analyze what went wrong and try a different approach.
+Maintain the correct format at all times: Thought, Action, Action Input, Observation.
+"""
 
 class ReActAgentComponent(LCToolsAgentComponent):
     """ReAct Agent Component for Langflow.
@@ -157,11 +179,34 @@ class ReActAgentComponent(LCToolsAgentComponent):
             logger.warning("No tools provided for the agent.")
             tools_list = []
         else:
-            tools_list = self.tools
+            # Use the new scalable tool processing system with proper middleware
+            tools_list = enhance_tools_for_agent(self.tools)
+            logger.info(f"Enhanced {len(tools_list)} tools with specialized processors and middleware")
 
-        # Get the ReAct prompt
-        # TODO: Make the prompt customizable via input
-        prompt = hub.pull("hwchase17/react")
+        # Create a custom enhanced ReAct prompt with better tool usage examples
+        try:
+            # Try to get the standard React prompt as a base
+            base_prompt = hub.pull("hwchase17/react")
+            
+            # Enhance with our custom system message
+            from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder, SystemMessagePromptTemplate
+            
+            # Extract the template messages
+            messages = base_prompt.messages
+            # Replace the system message with our enhanced version
+            for i, message in enumerate(messages):
+                if hasattr(message, 'prompt') and hasattr(message.prompt, 'template'):
+                    # This is likely the system message
+                    messages[i] = SystemMessagePromptTemplate.from_template(DEFAULT_SYSTEM_PROMPT)
+                    break
+                    
+            # Create enhanced prompt
+            prompt = ChatPromptTemplate.from_messages(messages)
+            logger.info("Successfully enhanced React prompt with custom tool usage examples")
+        except Exception as e:
+            # Fallback to original prompt if enhancement fails
+            logger.warning(f"Failed to enhance prompt: {str(e)}. Using default React prompt.")
+            prompt = hub.pull("hwchase17/react")
 
         if not create_react_agent:
             raise ImportError("create_react_agent function not available from LangChain imports.")
@@ -177,7 +222,30 @@ class ReActAgentComponent(LCToolsAgentComponent):
             
         agent_runnable = self.create_agent_runnable()
 
-        # Create the AgentExecutor with explicit input_key
+        # Create a format fixer to help the agent recover when confused
+        def format_fixer(error: Exception, observation: str) -> str:
+            """Help the agent recover from formatting errors.
+            
+            This provides a standardized way to get the agent back on track
+            if it gets confused about the expected format.
+            """
+            # Check for format errors
+            error_message = str(error)
+            
+            if "format" in error_message.lower() or "missing 'action'" in error_message.lower():
+                return (
+                    "I notice you didn't follow the format correctly. Remember to:\n"
+                    "1. Use 'Thought:' to express your reasoning\n"
+                    "2. Use 'Action:' to specify which tool to use\n"
+                    "3. Use 'Action Input:' to provide input to the tool\n"
+                    "4. When you're ready to give the final answer, use 'Final Answer:'\n"
+                    "\nLet me try again with the proper format."
+                )
+            
+            # For other errors
+            return f"There was an error: {error_message}. Let me try a different approach."
+            
+        # Create the AgentExecutor with explicit input_key and the format fixer
         agent_executor = AgentExecutor(
             agent=agent_runnable,
             tools=self.tools or [],
@@ -185,6 +253,7 @@ class ReActAgentComponent(LCToolsAgentComponent):
             max_iterations=self.max_iterations,
             handle_parsing_errors=self.handle_parsing_errors,
             # memory=self.memory, # TODO: Integrate memory if provided
-            input_key="input"  # Specify the input key to handle string inputs properly
+            input_key="input",  # Specify the input key to handle string inputs properly
+            handle_tool_error=format_fixer  # Add our custom format fixer
         )
         return agent_executor

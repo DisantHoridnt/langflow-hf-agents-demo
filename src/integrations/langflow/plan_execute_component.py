@@ -111,6 +111,12 @@ if PromptTemplate is None or LLMChain is None or BaseLanguageModel is None:
         "Please ensure LangChain is installed correctly."
     )
 
+from langchain_core.callbacks import BaseCallbackHandler
+from langchain_core.tools import BaseTool
+
+# Import the scalable tool enhancement system
+from .tools.integration import enhance_tools_for_agent
+
 # Import from our adapter layer instead of directly from Langflow
 from .adapters import (
     LCToolsAgentComponent,
@@ -181,9 +187,19 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
             display_name="System Prompt",
             info="System instructions to guide the agent's behavior.",
             value=(
-                "You are a helpful assistant that first plans what to do, then executes the plan step by step. "
-                "You have access to tools that can help you complete tasks. "
-                "Think carefully about the best way to accomplish the user's request."
+                "You are a helpful assistant that first plans what to do, then executes the plan step by step. \n"
+                "You have access to tools that can help you complete tasks. \n"
+                "Think carefully about the best way to accomplish the user's request.\n\n"
+                "IMPORTANT TOOL USAGE GUIDE:\n"
+                "- Wikipedia: Use for factual knowledge and information about topics. Input only the search term.\n"
+                "  Example: 'Wikipedia' with input 'France'\n\n"
+                "- Calculator: Use ONLY for mathematical calculations with numbers and operators.\n"
+                "  Example: 'Calculator' with input '2 + 2'\n"
+                "  Note: Only use operators like +, -, *, /, ^, (), not words or sentences.\n\n"
+                "- Search: Use for current events or broad web searches. Input only the search query.\n"
+                "  Example: 'Search' with input 'latest news about AI'\n\n"
+                "If you receive an error from a tool, analyze what went wrong and try a different approach.\n"
+                "Always maintain the correct format for planning and execution steps."
             ),
             advanced=False,
         ),
@@ -321,90 +337,145 @@ class PlanExecuteAgentComponent(LCToolsAgentComponent):
     def create_executor(self):
         """Create the executor component for the Plan-and-Execute agent.
         
-        This creates an executor that carries out each step of the plan using available tools.
+        This creates an executor that carries out the planned steps.
         """
         if self.llm is None:
-            raise ValueError("LLM is required for the planner")
-        
-        # Check for necessary attributes instead of using isinstance check
-        if not (hasattr(self.llm, "invoke") or hasattr(self.llm, "generate") or hasattr(self.llm, "__call__")):
-            raise ValueError(f"LLM needs to have invoke, generate, or be callable. Got {type(self.llm)}")
-        
-        if not self.tools:
-            raise ValueError("Tools are required for the executor")
-        
-        # Create the executor prompt
-        # We need ChatPromptTemplate and MessagesPlaceholder here as well
-        # Let's import them dynamically within the method for now to avoid NameErrors
-        try:
-            from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
-        except ImportError:
-            from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+            raise ValueError("LLM is required for the executor")
             
-        # Create a formatted string with tool descriptions for the prompt
-        tool_strings = "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools])
-        
-        # Create a dictionary that we can use to format the message template
-        tool_names = [tool.name for tool in self.tools]
-        
-        # Create the executor prompt including all required tool information
-        executor_prompt = ChatPromptTemplate.from_messages([
-            ("system", self.system_prompt + "\n\nYou have access to the following tools:\n" + tool_strings),
-            MessagesPlaceholder(variable_name="chat_history", optional=True),
-            ("human", "I need to execute this step of the plan: {input}\n\nThe available tools are: {tool_names}\n\nTools: {tools}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-        
-        # Partial format the template to supply tools and tool_names which are fixed for this agent
-        executor_prompt = executor_prompt.partial(tools=str(self.tools), tool_names=", ".join(tool_names))
-        
-        # Local import for create_react_agent
+        if not self.tools:
+            logger.warning("No tools provided for the executor")
+            tools_list = []
+        else:
+            # Use the new scalable tool processing system with proper middleware
+            tools_list = enhance_tools_for_agent(self.tools)
+            logger.info(f"Enhanced {len(tools_list)} tools with specialized processors and middleware")
+            
+        # Create a format fixer to help the agent recover when confused
+        def format_fixer(error: Exception, observation: str) -> str:
+            """Help the agent recover from formatting errors.
+            
+            This provides a standardized way to get the agent back on track
+            if it gets confused about the expected format.
+            """
+            # Check for format errors
+            error_message = str(error)
+            
+            if "format" in error_message.lower() or "missing 'action'" in error_message.lower():
+                return (
+                    "I notice you didn't follow the format correctly. Remember to:\n"
+                    "1. Use 'Thought:' to express your reasoning\n"
+                    "2. Use 'Action:' to specify which tool to use\n"
+                    "3. Use 'Action Input:' to provide input to the tool\n"
+                    "4. When you're ready to give the final answer, use 'Final Answer:'\n"
+                    "\nLet me try again with the proper format."
+                )
+            
+            # For other errors
+            return f"There was an error: {error_message}. Let me try a different approach."
+            
+        # Construct the executor as an AgentExecutor with the appropriate LLM and tools
         try:
-            # Try newer imports first
-            from langchain_community.agents.react.agent import create_react_agent as local_create_react_agent
-            logger.debug("Successfully imported create_react_agent from langchain_community")
-        except ImportError:
-            try:
-                # Try older imports
-                from langchain.agents.react.agent import create_react_agent as local_create_react_agent
-                logger.debug("Successfully imported create_react_agent from langchain")
-            except ImportError:
-                raise ImportError("Could not import create_react_agent from either langchain_community or langchain")
+            from langchain.agents import AgentExecutor, create_react_agent
+            from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+            from langchain.memory import ConversationBufferMemory
+            
+            # Format tools for the prompt
+            tool_strings = "\n".join([f"{tool.name}: {tool.description}" for tool in tools_list])
+            tool_names = ", ".join([tool.name for tool in tools_list])
+            
+            # Get or construct the prompt with required React variables and enhanced tool usage guidance
+            prompt = ChatPromptTemplate.from_messages([
+                ("system", self.system_prompt + "\n\nYou have access to the following tools:\n{tools}"),
+                MessagesPlaceholder(variable_name="chat_history", optional=True),
+                ("human", "{input}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ])
+            
+            # Important: Add the required variables for React agent
+            prompt = prompt.partial(tools=tool_strings, tool_names=tool_names)
+            
+            # Create the React agent for execution
+            agent = create_react_agent(self.llm, tools_list, prompt)
+            
+            # Create the AgentExecutor with our format fixer
+            executor = AgentExecutor(
+                agent=agent,
+                tools=tools_list,
+                verbose=self.verbose,
+                handle_parsing_errors=self.handle_parsing_errors,
+                max_iterations=self.max_subtask_iterations,  # Use subtask_iterations for the executor
+                handle_tool_error=format_fixer  # Add our custom format fixer
+            )
+            
+            # Successfully created the executor
+            logger.info("Successfully created executor: AgentExecutor")
+            return executor
+            
+        except ImportError as e:
+            logger.warning(f"Could not create executor using newer imports: {e}. Trying alternative approach.")
+            
+            # Create the executor with alternative approach
+            # Create the executor prompt including all required tool information
+            tool_strings = "\n".join([f"{tool.name}: {tool.description}" for tool in self.tools])
+            tool_names = [tool.name for tool in self.tools]
+            
+            executor_prompt = ChatPromptTemplate.from_messages([
+                ("system", self.system_prompt + "\n\nYou have access to the following tools:\n" + tool_strings),
+                MessagesPlaceholder(variable_name="chat_history", optional=True),
+                ("human", "I need to execute this step of the plan: {input}\n\nThe available tools are: {tool_names}\n\nTools: {tools}"),
+                MessagesPlaceholder(variable_name="agent_scratchpad"),
+            ])
         
-        # Create the executor agent with locally imported function
-        agent = local_create_react_agent(
-            llm=self.llm,
-            tools=self.tools,
-            prompt=executor_prompt,
-        )
+            # Partial format the template to supply tools and tool_names which are fixed for this agent
+            executor_prompt = executor_prompt.partial(tools=str(self.tools), tool_names=", ".join(tool_names))
+        
+            # Local import for create_react_agent
+            try:
+                # Try newer imports first
+                from langchain_community.agents.react.agent import create_react_agent as local_create_react_agent
+                logger.debug("Successfully imported create_react_agent from langchain_community")
+            except ImportError:
+                try:
+                    # Try older imports
+                    from langchain.agents.react.agent import create_react_agent as local_create_react_agent
+                    logger.debug("Successfully imported create_react_agent from langchain")
+                except ImportError:
+                    raise ImportError("Could not import create_react_agent from either langchain_community or langchain")
+        
+            # Create the executor agent with locally imported function
+            agent = local_create_react_agent(
+                llm=self.llm,
+                tools=self.tools,
+                prompt=executor_prompt,
+            )
         
         # Get callbacks if available
         callbacks: List[BaseCallbackHandler] = []
         if hasattr(self, "get_langchain_callbacks"):
             callbacks = self.get_langchain_callbacks()
         
-        # Local import for AgentExecutor
-        try:
-            # Try newer imports first
-            from langchain_core.agents import AgentExecutor as LocalAgentExecutor
-            logger.debug("Successfully imported AgentExecutor from langchain_core")
-        except ImportError:
+            # Local import for AgentExecutor
             try:
-                # Try older imports
-                from langchain.agents import AgentExecutor as LocalAgentExecutor
-                logger.debug("Successfully imported AgentExecutor from langchain")
+                # Try newer imports first
+                from langchain_core.agents import AgentExecutor as LocalAgentExecutor
+                logger.debug("Successfully imported AgentExecutor from langchain_core")
             except ImportError:
-                raise ImportError("Could not import AgentExecutor from either langchain_core or langchain")
-        
-        # Create the executor with locally imported class
-        return LocalAgentExecutor.from_agent_and_tools(
-            agent=agent,
-            tools=self.tools,
-            verbose=self.verbose,
-            max_iterations=self.max_subtask_iterations,
-            handle_parsing_errors=self.handle_parsing_errors,
-            callbacks=callbacks,
-        )
+                try:
+                    # Try older imports
+                    from langchain.agents import AgentExecutor as LocalAgentExecutor
+                    logger.debug("Successfully imported AgentExecutor from langchain")
+                except ImportError:
+                    raise ImportError("Could not import AgentExecutor from either langchain_core or langchain")
+            
+            # Create the executor with locally imported class
+            return LocalAgentExecutor.from_agent_and_tools(
+                agent=agent,
+                tools=self.tools,
+                verbose=self.verbose,
+                handle_parsing_errors=self.handle_parsing_errors,
+                max_iterations=self.max_subtask_iterations,
+                callbacks=callbacks
+            )
     
     def create_agent_runnable(self) -> Runnable:
         """Create the Plan-and-Execute agent runnable.
