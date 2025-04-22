@@ -1,16 +1,20 @@
 """
 Google Search Tool for Langflow
 
-This module provides a production-ready implementation of Google Custom Search
+This module provides a simple functional implementation of Google Custom Search
 using the official Google API client. This is more reliable than the DuckDuckGo
 search tool in production environments.
 """
 
 import os
+import sys
 import logging
 import importlib.util
-from typing import Any, Dict, List, Optional, Type, Union
-from functools import lru_cache
+from typing import Any, Dict, List, Optional, Union
+
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
 # Check if Google API is available
 GOOGLE_API_AVAILABLE = importlib.util.find_spec("googleapiclient") is not None
@@ -19,228 +23,140 @@ GOOGLE_API_AVAILABLE = importlib.util.find_spec("googleapiclient") is not None
 if GOOGLE_API_AVAILABLE:
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
+else:
+    logger.warning("Google API client not installed. Install with 'pip install google-api-python-client'")
 
-from langchain_core.tools import BaseTool, Tool
-from langchain_core.callbacks.manager import CallbackManagerForToolRun
+from langchain_core.tools import Tool
 
-logger = logging.getLogger(__name__)
-logging.basicConfig(level=logging.INFO)
-
-class GoogleSearchTool(BaseTool):
+def google_search(query: str, api_key: Optional[str] = None, cse_id: Optional[str] = None, 
+                 num_results: int = 5) -> str:
     """
-    A production-ready Google Custom Search tool using the official Google API client.
+    Perform a Google search using the Custom Search API.
     
-    This tool provides more reliable search functionality compared to DuckDuckGo.
-    It requires a Google API key and a Custom Search Engine ID.
+    Args:
+        query: The search query
+        api_key: Google API key. If None, will use GOOGLE_API_KEY env var
+        cse_id: Google Custom Search Engine ID. If None, will use GOOGLE_CSE_ID env var
+        num_results: Number of results to return
+        
+    Returns:
+        Formatted string of search results
     """
-    
-    name: str = "google_search"
-    description: str = "Useful for searching the internet to find information on current events, data, or answers to questions. Input should be a search query."
-    
-    # Define Pydantic fields properly
-    api_key: Optional[str] = None
-    search_engine_id: Optional[str] = None
-    max_results: int = 5
-    
-    def __init__(
-        self,
-        api_key: Optional[str] = None,
-        search_engine_id: Optional[str] = None,
-        max_results: int = 5,
-        return_direct: bool = False,
-    ):
-        """Initialize the Google Search tool.
+    try:
+        # Get credentials from environment if not provided
+        api_key = api_key or os.environ.get("GOOGLE_API_KEY")
+        cse_id = cse_id or os.environ.get("GOOGLE_CSE_ID")
         
-        Args:
-            api_key: Google API key. If not provided, will look for GOOGLE_API_KEY env var.
-            search_engine_id: Google Custom Search Engine ID. If not provided, will look for GOOGLE_CSE_ID env var.
-            max_results: Maximum number of search results to return.
-            return_direct: Whether to return the direct result.
-        """
-        # Initialize base tool first
-        super().__init__(return_direct=return_direct)
-        
-        # Set properties
-        self.api_key = api_key or os.environ.get("GOOGLE_API_KEY")
-        self.search_engine_id = search_engine_id or os.environ.get("GOOGLE_CSE_ID")
-        self.max_results = max_results
-        
-        # Check if we're in a testing environment (pytest)
-        import sys
-        self._in_pytest = 'pytest' in sys.modules
-        
-        # Only validate API requirements if not in pytest
-        if not self._in_pytest:
-            if not GOOGLE_API_AVAILABLE:
-                raise ImportError(
-                    "google-api-python-client is not installed. "
-                    "Please install it with `pip install google-api-python-client`"
-                )
-        
-        if not self.api_key:
-            raise ValueError(
-                "Google API key not provided. "
-                "Please provide it as an argument or set the GOOGLE_API_KEY env var."
-            )
-            
-        if not self.search_engine_id:
-            raise ValueError(
-                "Google Custom Search Engine ID not provided. "
-                "Please provide it as an argument or set the GOOGLE_CSE_ID env var."
-            )
-            
-        logger.info("Google Search Tool initialized successfully")
-    
-    @lru_cache(maxsize=100)
-    def _search(self, query: str) -> List[Dict[str, str]]:
-        """
-        Perform a Google search and return the results.
-        
-        Args:
-            query: Search query string
-            
-        Returns:
-            List of search result dictionaries with title, link, and snippet
-        """
-        # If in pytest, return mock data for testing
-        if self._in_pytest:
-            return self._mock_search_results(query)
-            
-        # Ensure the library is available for actual searches
-        if not GOOGLE_API_AVAILABLE:
-            raise ImportError(
-                "google-api-python-client is not installed. "
-                "Please install it with `pip install google-api-python-client`"
-            )
-
-        try:
-            # Build the service object
-            service = build("customsearch", "v1", developerKey=self.api_key)
-            
-            # Execute the search
-            result = service.cse().list(
-                q=query,
-                cx=self.search_engine_id,
-                num=self.max_results
-            ).execute()
-            
-            # Extract the search results
-            search_results = []
-            if "items" in result:
-                for item in result["items"]:
-                    search_results.append({
-                        "title": item.get("title", ""),
-                        "link": item.get("link", ""),
-                        "snippet": item.get("snippet", "")
-                    })
-            
-            return search_results
-            
-        except HttpError as e:
-            logger.error(f"Google API error: {str(e)}")
-            if "quota" in str(e).lower():
-                return [{"title": "Error", "link": "", "snippet": "Daily API quota exceeded. Please try again tomorrow."}]
-            return [{"title": "Error", "link": "", "snippet": f"Google API error: {str(e)}"}]
-            
-        except Exception as e:
-            logger.error(f"Error searching Google: {str(e)}")
-            return [{"title": "Error", "link": "", "snippet": f"Error searching Google: {str(e)}"}]
-    
-    def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
-        """Execute the search and return formatted results.
-
-        Args:
-            query: The search query to run.
-            run_manager: Optional callback manager for the tool run.
-
-        Returns:
-            A formatted string with search results.
-        """
         # Validate inputs
-        if not self.api_key:
-            raise ValueError("Google API key not provided")
-        if not self.search_engine_id:
-            raise ValueError("Google Custom Search Engine ID not provided")
-            
-        # If in pytest, return mock data for testing
-        if hasattr(self, '_in_pytest') and self._in_pytest:
-            return self._mock_search_results(query)
-            
-        # Ensure the library is available for actual searches
-        if not GOOGLE_API_AVAILABLE:
-            logger.warning("Google API client not installed. Returning fallback response.")
-            return "I'm unable to search Google at the moment. Please try a different search method or try again later."
-
-        logger.info(f"Performing Google search for: '{query}'")
-        
-        # Validate input
         if not query or not query.strip():
             return "No search query provided. Please specify what you'd like to search for."
-        
-        try:    
-            results = self._search(query.strip())
             
-            # Format results into a nice string
-            if results:
-                formatted_results = f"Google search results for: {query}\n\n"
-                for i, result in enumerate(results, 1):
-                    formatted_results += f"{i}. {result['title']}\n"
-                    formatted_results += f"   URL: {result['link']}\n"
-                    formatted_results += f"   Description: {result['snippet']}\n\n"
-            else:
-                formatted_results = "No results found for your query."
-                
-            return formatted_results
-        except Exception as e:
-            # Provide a graceful error message that won't break agent chains
-            logger.error(f"Error in Google search: {str(e)}")
-            return f"I encountered an issue while searching Google: {str(e)}. Please try a different search query or method."
-        
-    def _mock_search_results(self, query: str) -> str:
-        """Generate mock results for testing environments.
-        
-        Args:
-            query: The search query string.
+        if not api_key:
+            return "ERROR: Google API key not provided. Please set GOOGLE_API_KEY environment variable."
+        if not cse_id:
+            return "ERROR: Google Custom Search Engine ID not provided. Please set GOOGLE_CSE_ID environment variable."
             
-        Returns:
-            Formatted mock search results.
-        """
-        # Create predictable mocked results for testing
-        return (
-            f"Google search results for: {query}\n\n"
-            f"1. Test Result for {query}\n"
-            f"   URL: https://example.com/result1\n"
-            f"   Description: This is a test result for {query}.\n\n"
-            f"2. Second Test Result\n"
-            f"   URL: https://example.com/result2\n"
-            f"   Description: This is another test result.\n\n"
-        )
+        # Check if Google API is available
+        if not GOOGLE_API_AVAILABLE:
+            return "ERROR: Google API client not installed. Install with 'pip install google-api-python-client'."
+        
+        logger.info(f"Performing Google search for: '{query}'")
+        
+        # Build the service
+        service = build("customsearch", "v1", developerKey=api_key)
+        
+        # Execute search
+        result = service.cse().list(
+            q=query.strip(),
+            cx=cse_id,
+            num=num_results
+        ).execute()
+        
+        # Format results
+        formatted_results = f"Google search results for: {query}\n\n"
+        
+        if "items" in result:
+            for i, item in enumerate(result["items"], 1):
+                formatted_results += f"{i}. {item.get('title', '')}\n"
+                formatted_results += f"   URL: {item.get('link', '')}\n"
+                formatted_results += f"   Description: {item.get('snippet', '')}\n\n"
+        else:
+            formatted_results = "No results found for your query."
+            
+        return formatted_results
+        
+    except HttpError as e:
+        error_msg = f"Google API error: {str(e)}"
+        logger.error(error_msg)
+        if "quota" in str(e).lower():
+            return "ERROR: Daily Google API quota exceeded. Please try again tomorrow."
+        return f"ERROR: {error_msg}"
+    except Exception as e:
+        error_msg = f"Error searching Google: {str(e)}"
+        logger.error(error_msg)
+        return f"ERROR: {error_msg}"
+
+
+def mock_google_search(query: str) -> str:
+    """
+    Mock Google search for testing environments.
     
-    async def _arun(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
-        """Async version of _run method.
-            
-        Args:
-            query: Search query string
-            run_manager: Optional callback manager for the tool run.
-            
-        Returns:
-            Formatted string of search results
-        """
-        # Just use the sync version for now
-        return self._run(query, run_manager)
+    Args:
+        query: The search query
+        
+    Returns:
+        Formatted mock search results
+    """
+    return (
+        f"Google search results for: {query}\n\n"
+        f"1. Test Result for {query}\n"
+        f"   URL: https://example.com/result1\n"
+        f"   Description: This is a test result for {query}.\n\n"
+        f"2. Second Test Result\n"
+        f"   URL: https://example.com/result2\n"
+        f"   Description: This is another test result.\n\n"
+    )
 
 
-def get_google_search_tool() -> BaseTool:
-    """Create and return a GoogleSearchTool instance wrapped in a LangChain Tool.
+def get_google_search_tool() -> Tool:
+    """
+    Create and return a Google Search tool wrapped as a LangChain Tool.
     
     Returns:
-        BaseTool: A configured Google Search tool ready for use with LangChain agents
+        Tool: A configured Google Search tool ready for use with LangChain agents
     """
-    google_search = GoogleSearchTool()
-    
-    # Wrap in a Tool for compatibility with LangChain agents
-    return Tool(
+    try:
+        # Create the tool with a simple wrapper to avoid passing around complex objects
+        return Tool(
+            name="google_search",
+            description="Search Google for information about current events, data, or answers to questions. Input should be a search query.",
+            func=google_search
+        )
+    except Exception as e:
+        logger.error(f"Error creating Google Search tool: {str(e)}")
+        # Create a fallback tool that returns an error message
+        return Tool(
+            name="google_search",
+            description="Search Google for information about current events, data, or answers to questions. Input should be a search query.",
+            func=lambda query: f"Google Search is currently unavailable: {str(e)}"
+        )
+
+
+# We're keeping the mock function available for testing if needed
+# But we won't automatically switch to it in pytest environments
+# This ensures real API calls are made when credentials are provided
+
+# Uncomment the following to enable mock in pytest:
+'''
+def is_running_in_pytest() -> bool:
+    """Check if code is running in pytest environment"""
+    return "pytest" in sys.modules
+
+if is_running_in_pytest():
+    logger.info("Running in pytest environment, using mock Google Search")
+    get_google_search_tool = lambda: Tool(
         name="google_search",
-        description="Search Google for information about current events, data, or answers to questions. Input should be a search query.",
-        func=google_search._run
+        description="Search Google for information. Input should be a search query.",
+        func=mock_google_search
     )
+'''

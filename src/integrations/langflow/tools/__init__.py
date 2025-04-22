@@ -18,7 +18,7 @@ from .processors import (
 
 # Import Google Search components
 from .google_processor import GoogleSearchToolProcessor
-from .google_search import GoogleSearchTool, get_google_search_tool
+from .google_search import get_google_search_tool, google_search
 
 # Initialize the global registry and middleware manager
 tool_registry = ToolRegistry()

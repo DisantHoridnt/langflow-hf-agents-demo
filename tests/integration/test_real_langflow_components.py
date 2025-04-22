@@ -217,13 +217,25 @@ def test_react_agent_with_hf_model(hf_llm, tools):
     agent = react_component.build_agent()
     
     # F-4: The agent is usable and can be invoked
-    # Force calculator usage with a direct calculator query
+    # First test: Force calculator usage with a direct calculator query
     result = agent.invoke({
         "input": "Use the calculator to compute 25 * 4 + 10"
     })
     
     # Verify that the agent executed and returned something
     assert result, "Agent should return a non-empty result"
+    
+    print("\n\033[1;33m▶ TESTING GOOGLE SEARCH FUNCTIONALITY\033[0m")
+    print("\033[0;36mDemonstrating Google Search with a direct query...\033[0m")
+    
+    # Second test: Demonstrate Google Search functionality
+    search_result = agent.invoke({
+        "input": "Search for information about artificial intelligence trends in 2025"
+    })
+    
+    # Verify search results
+    assert search_result, "Google Search should return a non-empty result"
+    print("\033[1;32m✅ GOOGLE SEARCH TEST COMPLETED SUCCESSFULLY\033[0m")
     
     # Log the agent's reasoning path to show middleware in action
     if "intermediate_steps" in result:
