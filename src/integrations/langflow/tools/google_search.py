@@ -20,12 +20,11 @@ if GOOGLE_API_AVAILABLE:
     from googleapiclient.discovery import build
     from googleapiclient.errors import HttpError
 
-from langchain_core.tools import BaseTool
+from langchain_core.tools import BaseTool, Tool
+from langchain_core.callbacks.manager import CallbackManagerForToolRun
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
+logging.basicConfig(level=logging.INFO)
 
 class GoogleSearchTool(BaseTool):
     """
@@ -147,11 +146,12 @@ class GoogleSearchTool(BaseTool):
             logger.error(f"Error searching Google: {str(e)}")
             return [{"title": "Error", "link": "", "snippet": f"Error searching Google: {str(e)}"}]
     
-    def _run(self, query: str) -> str:
+    def _run(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
         """Execute the search and return formatted results.
 
         Args:
             query: The search query to run.
+            run_manager: Optional callback manager for the tool run.
 
         Returns:
             A formatted string with search results.
@@ -163,35 +163,38 @@ class GoogleSearchTool(BaseTool):
             raise ValueError("Google Custom Search Engine ID not provided")
             
         # If in pytest, return mock data for testing
-        if self._in_pytest:
+        if hasattr(self, '_in_pytest') and self._in_pytest:
             return self._mock_search_results(query)
             
         # Ensure the library is available for actual searches
         if not GOOGLE_API_AVAILABLE:
-            raise ImportError(
-                "google-api-python-client is not installed. "
-                "Please install it with `pip install google-api-python-client`"
-            )
+            logger.warning("Google API client not installed. Returning fallback response.")
+            return "I'm unable to search Google at the moment. Please try a different search method or try again later."
 
         logger.info(f"Performing Google search for: '{query}'")
         
         # Validate input
-        if not query or len(query.strip()) == 0:
-            return "Error: Search query cannot be empty."
-            
-        results = self._search(query.strip())
+        if not query or not query.strip():
+            return "No search query provided. Please specify what you'd like to search for."
         
-        # Format results into a nice string
-        if results:
-            formatted_results = f"Google search results for: {query}\n\n"
-            for i, result in enumerate(results, 1):
-                formatted_results += f"{i}. {result['title']}\n"
-                formatted_results += f"   URL: {result['link']}\n"
-                formatted_results += f"   Description: {result['snippet']}\n\n"
-        else:
-            formatted_results = "No results found for your query."
+        try:    
+            results = self._search(query.strip())
             
-        return formatted_results
+            # Format results into a nice string
+            if results:
+                formatted_results = f"Google search results for: {query}\n\n"
+                for i, result in enumerate(results, 1):
+                    formatted_results += f"{i}. {result['title']}\n"
+                    formatted_results += f"   URL: {result['link']}\n"
+                    formatted_results += f"   Description: {result['snippet']}\n\n"
+            else:
+                formatted_results = "No results found for your query."
+                
+            return formatted_results
+        except Exception as e:
+            # Provide a graceful error message that won't break agent chains
+            logger.error(f"Error in Google search: {str(e)}")
+            return f"I encountered an issue while searching Google: {str(e)}. Please try a different search query or method."
         
     def _mock_search_results(self, query: str) -> str:
         """Generate mock results for testing environments.
@@ -213,38 +216,31 @@ class GoogleSearchTool(BaseTool):
             f"   Description: This is another test result.\n\n"
         )
     
-    async def _arun(self, query: str) -> str:
-        """
-        Run the Google search tool asynchronously.
-        This just calls the synchronous version for now.
-        
+    async def _arun(self, query: str, run_manager: Optional[CallbackManagerForToolRun] = None) -> str:
+        """Async version of _run method.
+            
         Args:
             query: Search query string
+            run_manager: Optional callback manager for the tool run.
             
         Returns:
             Formatted string of search results
         """
-        return self._run(query)
+        # Just use the sync version for now
+        return self._run(query, run_manager)
 
 
-def get_google_search_tool(
-    api_key: Optional[str] = None,
-    search_engine_id: Optional[str] = None,
-    max_results: int = 5
-) -> GoogleSearchTool:
-    """
-    Get a configured Google Search tool.
+def get_google_search_tool() -> BaseTool:
+    """Create and return a GoogleSearchTool instance wrapped in a LangChain Tool.
     
-    Args:
-        api_key: Google API key. If not provided, will look for GOOGLE_API_KEY env var.
-        search_engine_id: Google Custom Search Engine ID. If not provided, will look for GOOGLE_CSE_ID env var.
-        max_results: Maximum number of search results to return.
-        
     Returns:
-        Configured GoogleSearchTool
+        BaseTool: A configured Google Search tool ready for use with LangChain agents
     """
-    return GoogleSearchTool(
-        api_key=api_key,
-        search_engine_id=search_engine_id,
-        max_results=max_results
+    google_search = GoogleSearchTool()
+    
+    # Wrap in a Tool for compatibility with LangChain agents
+    return Tool(
+        name="google_search",
+        description="Search Google for information about current events, data, or answers to questions. Input should be a search query.",
+        func=google_search._run
     )

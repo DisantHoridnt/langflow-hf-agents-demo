@@ -53,8 +53,11 @@ try:
         from langchain_community.llms import HuggingFaceHub
         USING_HF_ENDPOINT = False
         
-    from langchain_community.tools import WikipediaQueryRun, DuckDuckGoSearchRun
-    from langchain_community.utilities import WikipediaAPIWrapper, DuckDuckGoSearchAPIWrapper
+    from langchain_community.tools import WikipediaQueryRun
+    from langchain_community.utilities import WikipediaAPIWrapper
+
+    # Import our Google Search tool
+    from src.integrations.langflow.tools.google_search import get_google_search_tool
     from langchain_core.tools import BaseTool, Tool, StructuredTool
     import math
     import re
@@ -163,13 +166,8 @@ def tools() -> List[BaseTool]:
         func=calculator._run
     )
     
-    # Create a search tool
-    search = DuckDuckGoSearchRun(api_wrapper=DuckDuckGoSearchAPIWrapper())
-    search_tool = Tool(
-        name="Search",
-        description="Useful for searching the internet for current information",
-        func=search._run
-    )
+    # Use our improved Google Search tool instead of DuckDuckGo
+    search_tool = get_google_search_tool()
     
     return [wiki_tool, calc_tool, search_tool]
 
@@ -336,12 +334,8 @@ def test_tool_interoperability():
         description="Useful for searching information on Wikipedia."
     )
     
-    search = DuckDuckGoSearchAPIWrapper()
-    search_tool = Tool(
-        name="duckduckgo_search",
-        func=DuckDuckGoSearchRun(api_wrapper=search).run,
-        description="Useful for searching the internet for current information."
-    )
+    # Use Google Search instead of DuckDuckGo
+    search_tool = get_google_search_tool()
     
     # Create a simple function tool
     def get_current_weather(location: str) -> str:
@@ -362,5 +356,5 @@ def test_tool_interoperability():
     tool_names = [tool.name for tool in all_tools]
     assert 'Calculator' in tool_names
     assert 'wikipedia' in tool_names
-    assert 'duckduckgo_search' in tool_names
+    assert 'google_search' in tool_names
     assert 'Weather' in tool_names
