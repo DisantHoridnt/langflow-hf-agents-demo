@@ -30,12 +30,14 @@ class ReActAgent(CustomComponent):
                 "display_name": "Language Model",
                 "info": "The language model to use for the agent.",
                 "required": True,
+                "input_types": ["BaseLanguageModel", "LanguageModel", "ChatModel"],
             },
             "tools": {
                 "display_name": "Tools",
                 "info": "The tools the agent can use.",
                 "required": True,
                 "is_list": True,
+                "input_types": ["Tool"],
             },
             "input_value": {
                 "display_name": "Input",
@@ -77,6 +79,7 @@ class ReActAgent(CustomComponent):
         verbose: bool = True,
         handle_parsing_errors: bool = True,
         system_prompt: Optional[str] = None,
+        **kwargs,  # Accept additional keyword arguments
     ) -> str:
         """Build and run the ReAct agent."""
         logger.info(f"Building ReAct agent with {len(tools)} tools")
