@@ -18,7 +18,7 @@ build:
 
 # Start development environment with Langflow
 dev:
-	docker-compose --env-file .env up dev
+	docker-compose --env-file .env up --build dev
 
 # Clean up Docker resources
 clean:

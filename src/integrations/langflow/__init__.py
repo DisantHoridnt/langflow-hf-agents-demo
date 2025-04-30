@@ -19,7 +19,7 @@ __all__ = ["ReActAgentComponent", "PlanExecuteAgentComponent", "LCToolsAgentComp
 
 # Try to import components with proper error handling
 try:
-    from .react_component import ReActAgentComponent
+    from .custom_react_agent import ReActAgentComponent
     from .plan_execute_component import PlanExecuteAgentComponent
     logger.info("Successfully imported Langflow components")
 except ImportError as e:

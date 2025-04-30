@@ -43,10 +43,11 @@ services:
       - langflow_cache:/root/.cache/langflow  # Persist Langflow cache
     ports:
       - "7860:7860"  # Langflow UI port
-    command: bash -c "source /activate-environment.sh && python -m langflow run --host 0.0.0.0 --port 7860"
+    command: bash -c "source /activate-environment.sh && python -m langflow run --host 0.0.0.0 --port 7860 --components-path /app/src/integrations"
     environment:
       - PYTHONPATH=/app
       - LANGFLOW_AUTO_REGISTER_COMPONENTS=true
+      - LANGFLOW_COMPONENTS_PATH=/app/components
       - HUGGINGFACEHUB_API_TOKEN=${HUGGINGFACEHUB_API_TOKEN}
       - GOOGLE_API_KEY=${GOOGLE_API_KEY}
       - GOOGLE_CSE_ID=9213633ece9ec43e5

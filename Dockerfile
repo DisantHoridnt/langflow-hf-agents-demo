@@ -25,6 +25,7 @@ COPY README.md .
 
 # Copy source code
 COPY src/ src/
+COPY langflow_extensions/ langflow_extensions/
 COPY tests/ tests/
 COPY pytest.ini .
 
@@ -44,6 +45,16 @@ RUN if [ "$INSTALL_LANGFLOW" = "true" ] ; then \
         echo "Installing Langflow/Dev dependencies into venv-core..." && \
         uv pip install -r requirements-dev.txt && \
         echo "Langflow/Dev dependencies installed into venv-core." ; \
+    fi
+
+# Install our custom Langflow extensions package when Langflow is installed
+RUN if [ "$INSTALL_LANGFLOW" = "true" ] ; then \
+        . ~/.bashrc && \
+        . /opt/venv-core/bin/activate && \
+        echo "Installing custom Langflow extensions..." && \
+        cd /app/langflow_extensions && \
+        pip install -e . && \
+        echo "Custom Langflow extensions installed." ; \
     fi
 
 # Activation script for the single environment
